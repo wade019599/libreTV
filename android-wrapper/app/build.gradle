@@ -22,14 +22,10 @@ android {
         applicationId "com.libretv.wrapper"
         minSdk 23
         targetSdk 35
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 13
+        versionName "1.5.6-no-server"
 
-        def siteUrl = project.findProperty("LIBRETV_SITE_URL") ?: "https://libretv.is-an.org"
-        def backupSiteUrl = project.findProperty("LIBRETV_BACKUP_SITE_URL") ?: ""
         def appBuild = project.findProperty("LIBRETV_APP_BUILD") ?: new Date().format("yyyyMMddHHmmss")
-        buildConfigField "String", "LIBRETV_SITE_URL", "\"${siteUrl}\""
-        buildConfigField "String", "LIBRETV_BACKUP_SITE_URL", "\"${backupSiteUrl}\""
         buildConfigField "String", "LIBRETV_APP_BUILD", "\"${appBuild}\""
     }
 
@@ -89,6 +85,17 @@ tasks.register("syncBundledWebAssets", Copy) {
         include "image/**"
         include "js/**"
         include "libs/**"
+    }
+    from(new File(webRoot, "iptv-api/config")) {
+        into "iptv/config"
+        include "**/*"
+    }
+    from(new File(webRoot, "iptv-api/output")) {
+        into "iptv"
+        include "result.txt"
+        include "result.m3u"
+        include "hls.txt"
+        include "hls.m3u"
     }
 }
 

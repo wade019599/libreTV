@@ -24,6 +24,153 @@ const LIVE_FREEZE_TIMEOUT = 6000;
 const LIVE_PAUSE_TIMEOUT = 2500;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_PATTERN = /推流|rtmp|srt|gb28181|webrtc/i;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_VALUES = ['hls_txt', 'hls_m3u'];
+const APP_LIVE_SYNC_SETTINGS_KEY = 'appLiveSyncSettings';
+const APP_BUNDLED_LIVE_SOURCE_URL = '/iptv/result.txt';
+const APP_BUNDLED_LIVE_SOURCE_VERSION = '20260710-v1';
+const APP_BUNDLED_LIVE_SUBSCRIPTIONS_URL = '/iptv/config/subscribe.txt';
+const APP_LIVE_SYNC_DEFAULTS = Object.freeze({
+    speedTestEnabled: false,
+    rateFilterEnabled: false,
+    resolutionFilterEnabled: false,
+    concurrency: 10,
+    timeoutSeconds: 5,
+    minRateMbps: 0.1,
+    minResolution: '1280x720',
+    maxResolution: '3840x2160'
+});
+
+function getAppLiveSyncSettings() {
+    let saved = {};
+    try {
+        saved = JSON.parse(localStorage.getItem(APP_LIVE_SYNC_SETTINGS_KEY) || '{}');
+    } catch (error) {
+        console.warn('读取直播源同步参数失败:', error);
+    }
+
+    const normalizeNumber = (value, fallback, min, max, integer = false) => {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return fallback;
+        const normalized = Math.min(max, Math.max(min, number));
+        return integer ? Math.round(normalized) : Math.round(normalized * 100) / 100;
+    };
+    const normalizeResolution = (value, fallback) => {
+        const match = String(value || '').trim().match(/^(\d{2,5})\s*[xX×]\s*(\d{2,5})$/);
+        return match ? `${Number(match[1])}x${Number(match[2])}` : fallback;
+    };
+
+    return {
+        speedTestEnabled: saved.speedTestEnabled === true,
+        rateFilterEnabled: saved.rateFilterEnabled === true,
+        resolutionFilterEnabled: saved.resolutionFilterEnabled === true,
+        concurrency: normalizeNumber(saved.concurrency, APP_LIVE_SYNC_DEFAULTS.concurrency, 1, 20, true),
+        timeoutSeconds: normalizeNumber(saved.timeoutSeconds, APP_LIVE_SYNC_DEFAULTS.timeoutSeconds, 1, 60, true),
+        minRateMbps: normalizeNumber(saved.minRateMbps, APP_LIVE_SYNC_DEFAULTS.minRateMbps, 0, 1000),
+        minResolution: normalizeResolution(saved.minResolution, APP_LIVE_SYNC_DEFAULTS.minResolution),
+        maxResolution: normalizeResolution(saved.maxResolution, APP_LIVE_SYNC_DEFAULTS.maxResolution)
+    };
+}
+
+function initAppLiveSyncSettingsControls(settings = APP_LIVE_SYNC_DEFAULTS) {
+    const values = {
+        liveSyncSpeedTestEnabled: settings.speedTestEnabled,
+        liveSyncRateFilterEnabled: settings.rateFilterEnabled,
+        liveSyncResolutionFilterEnabled: settings.resolutionFilterEnabled,
+        liveSyncConcurrency: settings.concurrency,
+        liveSyncTimeout: settings.timeoutSeconds,
+        liveSyncMinRate: settings.minRateMbps,
+        liveSyncMinResolution: settings.minResolution,
+        liveSyncMaxResolution: settings.maxResolution
+    };
+    Object.entries(values).forEach(([id, value]) => {
+        const control = document.getElementById(id);
+        if (!control) return;
+        if (control.type === 'checkbox') control.checked = Boolean(value);
+        else control.value = String(value);
+    });
+
+    const status = document.getElementById('appLiveSyncSettingsStatus');
+    if (status) {
+        status.className = 'text-xs text-gray-500';
+        if (settings.speedTestEnabled) {
+            status.textContent = `测速已开启，并发 ${settings.concurrency}，超时 ${settings.timeoutSeconds} 秒`;
+        } else if (settings.rateFilterEnabled || settings.resolutionFilterEnabled) {
+            status.textContent = '测速未开启，速率和分辨率过滤暂不生效';
+        } else {
+            status.textContent = '测速未开启，同步时保留全部已解析线路';
+        }
+    }
+}
+
+function saveAppLiveSyncSettings(silent = false) {
+    const status = document.getElementById('appLiveSyncSettingsStatus');
+    const minResolution = String(document.getElementById('liveSyncMinResolution')?.value || '').trim();
+    const maxResolution = String(document.getElementById('liveSyncMaxResolution')?.value || '').trim();
+    const minMatch = minResolution.match(/^(\d{2,5})\s*[xX×]\s*(\d{2,5})$/);
+    const maxMatch = maxResolution.match(/^(\d{2,5})\s*[xX×]\s*(\d{2,5})$/);
+    if (!minMatch || !maxMatch) {
+        if (status) {
+            status.className = 'text-xs text-red-400';
+            status.textContent = '分辨率格式应为宽x高，例如 1280x720';
+        }
+        return false;
+    }
+
+    const minWidth = Number(minMatch[1]);
+    const minHeight = Number(minMatch[2]);
+    const maxWidth = Number(maxMatch[1]);
+    const maxHeight = Number(maxMatch[2]);
+    if (minWidth > maxWidth || minHeight > maxHeight) {
+        if (status) {
+            status.className = 'text-xs text-red-400';
+            status.textContent = '最大分辨率不能低于最小分辨率';
+        }
+        return false;
+    }
+
+    const readNumber = (id, fallback, min, max, integer = false) => {
+        const number = Number(document.getElementById(id)?.value);
+        if (!Number.isFinite(number)) return fallback;
+        const normalized = Math.min(max, Math.max(min, number));
+        return integer ? Math.round(normalized) : Math.round(normalized * 100) / 100;
+    };
+    const settings = {
+        speedTestEnabled: document.getElementById('liveSyncSpeedTestEnabled')?.checked === true,
+        rateFilterEnabled: document.getElementById('liveSyncRateFilterEnabled')?.checked === true,
+        resolutionFilterEnabled: document.getElementById('liveSyncResolutionFilterEnabled')?.checked === true,
+        concurrency: readNumber('liveSyncConcurrency', APP_LIVE_SYNC_DEFAULTS.concurrency, 1, 20, true),
+        timeoutSeconds: readNumber('liveSyncTimeout', APP_LIVE_SYNC_DEFAULTS.timeoutSeconds, 1, 60, true),
+        minRateMbps: readNumber('liveSyncMinRate', APP_LIVE_SYNC_DEFAULTS.minRateMbps, 0, 1000),
+        minResolution: `${minWidth}x${minHeight}`,
+        maxResolution: `${maxWidth}x${maxHeight}`
+    };
+    localStorage.setItem(APP_LIVE_SYNC_SETTINGS_KEY, JSON.stringify(settings));
+    const normalizedValues = {
+        liveSyncConcurrency: settings.concurrency,
+        liveSyncTimeout: settings.timeoutSeconds,
+        liveSyncMinRate: settings.minRateMbps,
+        liveSyncMinResolution: settings.minResolution,
+        liveSyncMaxResolution: settings.maxResolution
+    };
+    Object.entries(normalizedValues).forEach(([id, value]) => {
+        const control = document.getElementById(id);
+        if (control) control.value = String(value);
+    });
+    if (!silent && status) {
+        status.className = 'text-xs text-green-400';
+        status.textContent = '直播源同步参数已保存';
+    }
+    return true;
+}
+
+function resetAppLiveSyncSettings() {
+    localStorage.setItem(APP_LIVE_SYNC_SETTINGS_KEY, JSON.stringify(APP_LIVE_SYNC_DEFAULTS));
+    initAppLiveSyncSettingsControls(APP_LIVE_SYNC_DEFAULTS);
+    const status = document.getElementById('appLiveSyncSettingsStatus');
+    if (status) {
+        status.className = 'text-xs text-green-400';
+        status.textContent = '已恢复默认同步参数';
+    }
+}
 
 function getAppLiveSourceCache() {
     try {
@@ -133,40 +280,304 @@ function parseAppLivePlaylist(text, type = 'txt') {
     return { channels, groups };
 }
 
+async function filterAppLiveChannels(channels, settings, onProgress) {
+    const tasks = [];
+    const passedUrls = channels.map(() => []);
+    channels.forEach((channel, channelIndex) => {
+        const urls = Array.isArray(channel.urls) && channel.urls.length ? channel.urls : [channel.url];
+        urls.forEach(url => {
+            if (/^https?:\/\//i.test(String(url || '').trim())) {
+                tasks.push({ channelIndex, url: String(url).trim() });
+            }
+        });
+    });
+
+    const stats = {
+        total: tasks.length,
+        tested: 0,
+        passed: 0,
+        rejected: 0,
+        failed: 0,
+        rateRejected: 0,
+        resolutionRejected: 0,
+        unknownResolution: 0
+    };
+    if (!tasks.length) {
+        return { channels: [], groups: [], stats };
+    }
+
+    const minResolution = settings.minResolution.split('x').map(Number);
+    const maxResolution = settings.maxResolution.split('x').map(Number);
+    const maxReadBytes = 1024 * 1024;
+    let taskCursor = 0;
+    const workerCount = Math.min(settings.concurrency, tasks.length);
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (taskCursor < tasks.length) {
+            const task = tasks[taskCursor];
+            taskCursor += 1;
+            let detectedResolution = null;
+            let measuredRate = 0;
+            let linePassed = false;
+            let failed = false;
+
+            try {
+                let requestUrl = task.url;
+                for (let depth = 0; depth < 3; depth += 1) {
+                    const proxiedUrl = window.ProxyAuth?.addAuthToProxyUrl
+                        ? await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(requestUrl))
+                        : PROXY_URL + encodeURIComponent(requestUrl);
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), settings.timeoutSeconds * 1000);
+                    const startedAt = performance.now();
+                    let response;
+                    let bytes = new Uint8Array(0);
+                    try {
+                        response = await fetch(proxiedUrl, {
+                            headers: { 'Accept': 'application/vnd.apple.mpegurl,video/*,*/*' },
+                            signal: controller.signal
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        if (response.body?.getReader) {
+                            const reader = response.body.getReader();
+                            const chunks = [];
+                            let received = 0;
+                            while (received < maxReadBytes) {
+                                const result = await reader.read();
+                                if (result.done) break;
+                                const remaining = maxReadBytes - received;
+                                const chunk = result.value.byteLength > remaining
+                                    ? result.value.slice(0, remaining)
+                                    : result.value;
+                                chunks.push(chunk);
+                                received += chunk.byteLength;
+                            }
+                            try {
+                                await reader.cancel();
+                            } catch {
+                                // 部分 WebView 不支持主动取消已完成的读取。
+                            }
+                            bytes = new Uint8Array(received);
+                            let offset = 0;
+                            chunks.forEach(chunk => {
+                                bytes.set(chunk, offset);
+                                offset += chunk.byteLength;
+                            });
+                        } else {
+                            const buffer = new Uint8Array(await response.arrayBuffer());
+                            bytes = buffer.byteLength > maxReadBytes ? buffer.slice(0, maxReadBytes) : buffer;
+                        }
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+
+                    const elapsedSeconds = Math.max((performance.now() - startedAt) / 1000, 0.001);
+                    const responseText = new TextDecoder('utf-8').decode(bytes);
+                    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                    const isPlaylist = contentType.includes('mpegurl')
+                        || contentType.includes('m3u')
+                        || /\.m3u8?(?:$|[?#])/i.test(requestUrl)
+                        || /^\s*#EXTM3U/i.test(responseText);
+                    if (!isPlaylist) {
+                        measuredRate = bytes.byteLength / elapsedSeconds / 1024 / 1024;
+                        linePassed = bytes.byteLength > 0;
+                        break;
+                    }
+
+                    const resolutionMatch = responseText.match(/RESOLUTION\s*=\s*(\d+)x(\d+)/i);
+                    if (resolutionMatch && !detectedResolution) {
+                        detectedResolution = [Number(resolutionMatch[1]), Number(resolutionMatch[2])];
+                    }
+                    const mediaLine = responseText.split(/\r?\n/)
+                        .map(line => line.trim())
+                        .find(line => line && !line.startsWith('#'));
+                    if (!mediaLine) {
+                        throw new Error('直播清单中没有可测速的媒体地址');
+                    }
+
+                    const mediaUrl = new URL(mediaLine, requestUrl);
+                    if (mediaUrl.hostname === 'jmtv.local' && mediaUrl.pathname === '/api/live/media') {
+                        requestUrl = mediaUrl.searchParams.get('url') || '';
+                    } else {
+                        requestUrl = mediaUrl.href;
+                    }
+                    if (!/^https?:\/\//i.test(requestUrl)) {
+                        throw new Error('直播清单中的媒体地址无效');
+                    }
+                    if (depth === 2) {
+                        throw new Error('直播清单嵌套层级过深');
+                    }
+                }
+
+                if (!linePassed) {
+                    throw new Error('直播线路没有返回有效媒体数据');
+                }
+                if (settings.rateFilterEnabled && measuredRate < settings.minRateMbps) {
+                    stats.rateRejected += 1;
+                } else if (settings.resolutionFilterEnabled && detectedResolution
+                    && (detectedResolution[0] < minResolution[0]
+                        || detectedResolution[1] < minResolution[1]
+                        || detectedResolution[0] > maxResolution[0]
+                        || detectedResolution[1] > maxResolution[1])) {
+                    stats.resolutionRejected += 1;
+                } else {
+                    if (settings.resolutionFilterEnabled && !detectedResolution) {
+                        stats.unknownResolution += 1;
+                    }
+                    passedUrls[task.channelIndex].push(task.url);
+                    stats.passed += 1;
+                    linePassed = true;
+                }
+            } catch (error) {
+                failed = true;
+                console.warn(`直播线路测速失败：${task.url}`, error);
+            }
+
+            stats.tested += 1;
+            if (failed) stats.failed += 1;
+            if (failed || !linePassed || !passedUrls[task.channelIndex].includes(task.url)) {
+                stats.rejected += 1;
+            }
+            if (typeof onProgress === 'function') {
+                onProgress(stats.tested, stats.total);
+            }
+        }
+    }));
+
+    const filteredChannels = channels.flatMap((channel, channelIndex) => {
+        const urls = passedUrls[channelIndex];
+        return urls.length ? [{ ...channel, url: urls[0], urls }] : [];
+    });
+    const groups = [...new Set(filteredChannels.map(channel => channel.group || '未分组'))];
+    return { channels: filteredChannels, groups, stats };
+}
+
 async function syncLiveSourceFromUrl(url, options = {}) {
     const sourceUrl = String(url || '').trim();
-    if (!/^https?:\/\/.+/i.test(sourceUrl)) {
+    const useBundledSubscriptions = !sourceUrl
+        && typeof isLocalAppBundle === 'function'
+        && isLocalAppBundle();
+    if (sourceUrl && !/^https?:\/\/.+/i.test(sourceUrl)) {
         if (!options.silent && typeof showToast === 'function') {
             showToast('直播源地址格式不正确', 'warning');
         }
         return false;
     }
+    if (!sourceUrl && !useBundledSubscriptions) {
+        if (!options.silent && typeof showToast === 'function') {
+            showToast('请输入直播源地址', 'warning');
+        }
+        return false;
+    }
 
     if (!options.silent && typeof showLoading === 'function') {
-        showLoading('正在同步直播源...');
+        showLoading(useBundledSubscriptions ? '正在读取内置订阅...' : '正在同步直播源...');
     }
     try {
-        const proxiedUrl = window.ProxyAuth?.addAuthToProxyUrl ?
-            await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(sourceUrl)) :
-            PROXY_URL + encodeURIComponent(sourceUrl);
-        const response = await fetch(proxiedUrl, {
-            headers: { 'Accept': 'text/plain,application/vnd.apple.mpegurl,*/*' }
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        const syncSettings = getAppLiveSyncSettings();
+        let sourceEntries = [{ url: sourceUrl, userAgent: '' }];
+        if (useBundledSubscriptions) {
+            const subscriptionsResponse = await fetch(APP_BUNDLED_LIVE_SUBSCRIPTIONS_URL, { cache: 'no-store' });
+            if (!subscriptionsResponse.ok) {
+                throw new Error(`内置订阅读取失败：HTTP ${subscriptionsResponse.status}`);
+            }
+            const seenUrls = new Set();
+            sourceEntries = [];
+            for (const rawLine of (await subscriptionsResponse.text()).split(/\r?\n/)) {
+                const line = rawLine.replace(/^\uFEFF/, '').trim();
+                if (/^\[WHITELIST\]$/i.test(line)) {
+                    break;
+                }
+                if (!line || line.startsWith('#')) {
+                    continue;
+                }
+                const match = line.match(/^(https?:\/\/\S+?)(?:\s+UA="([^"]*)")?\s*$/i);
+                if (!match || seenUrls.has(match[1])) {
+                    continue;
+                }
+                seenUrls.add(match[1]);
+                sourceEntries.push({ url: match[1], userAgent: match[2] || '' });
+            }
+            if (!sourceEntries.length) {
+                throw new Error('内置订阅列表没有有效地址');
+            }
         }
-        const content = await response.text();
-        const type = /\.m3u8?(?:$|\?)/i.test(sourceUrl) || /^#EXTM3U/i.test(content.trim()) ? 'm3u' : 'txt';
-        const parsed = parseAppLivePlaylist(content, type);
-        if (!parsed.channels.length) {
-            throw new Error('未解析到有效频道');
+
+        const sourceResults = [];
+        const batchSize = useBundledSubscriptions ? 4 : 1;
+        for (let offset = 0; offset < sourceEntries.length; offset += batchSize) {
+            const batch = sourceEntries.slice(offset, offset + batchSize);
+            if (useBundledSubscriptions && !options.silent && typeof showLoading === 'function') {
+                showLoading(`正在同步内置订阅 ${Math.min(offset + batch.length, sourceEntries.length)}/${sourceEntries.length}`);
+            }
+            const batchResults = await Promise.all(batch.map(async entry => {
+                let proxyUrl = PROXY_URL + encodeURIComponent(entry.url);
+                if (entry.userAgent) {
+                    proxyUrl += `?ua=${encodeURIComponent(entry.userAgent)}`;
+                }
+                const proxiedUrl = window.ProxyAuth?.addAuthToProxyUrl
+                    ? await window.ProxyAuth.addAuthToProxyUrl(proxyUrl)
+                    : proxyUrl;
+                const sourceController = new AbortController();
+                const sourceTimeoutId = setTimeout(() => sourceController.abort(), syncSettings.timeoutSeconds * 1000);
+                try {
+                    const response = await fetch(proxiedUrl, {
+                        headers: { 'Accept': 'text/plain,application/vnd.apple.mpegurl,*/*' },
+                        signal: sourceController.signal
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const content = await response.text();
+                    const type = /\.m3u8?(?:$|\?)/i.test(entry.url) || /^#EXTM3U/i.test(content.trim()) ? 'm3u' : 'txt';
+                    const parsed = parseAppLivePlaylist(content, type);
+                    if (!parsed.channels.length) {
+                        throw new Error('未解析到有效频道');
+                    }
+                    return { entry, type, parsed, error: null };
+                } catch (error) {
+                    console.warn(`订阅同步失败：${entry.url}`, error);
+                    return { entry, type: '', parsed: null, error };
+                } finally {
+                    clearTimeout(sourceTimeoutId);
+                }
+            }));
+            sourceResults.push(...batchResults);
+        }
+
+        const successfulResults = sourceResults.filter(result => result.parsed?.channels?.length);
+        if (!successfulResults.length) {
+            const firstError = sourceResults.find(result => result.error)?.error;
+            throw firstError || new Error('所有直播订阅均同步失败');
+        }
+        const mergedChannels = dedupeLiveChannels(successfulResults.flatMap(result => result.parsed.channels));
+        const mergedGroups = [...new Set([
+            ...successfulResults.flatMap(result => result.parsed.groups || []),
+            ...mergedChannels.map(channel => channel.group || '未分组')
+        ])];
+        const filtered = syncSettings.speedTestEnabled
+            ? await filterAppLiveChannels(mergedChannels, syncSettings, (completed, total) => {
+                if (!options.silent && typeof showLoading === 'function') {
+                    showLoading(`正在测速 ${completed}/${total}`);
+                }
+            })
+            : { channels: mergedChannels, groups: mergedGroups, stats: null };
+        if (!filtered.channels.length) {
+            throw new Error('测速或过滤后没有可用频道，请调整同步参数');
         }
         const cache = {
             sourceUrl,
-            sourceType: type,
+            sourceType: useBundledSubscriptions ? 'subscriptions' : successfulResults[0].type,
+            sourceCount: successfulResults.length,
+            sourceTotal: sourceEntries.length,
             updatedAt: Date.now(),
-            channels: parsed.channels,
-            groups: parsed.groups
+            channels: filtered.channels,
+            groups: filtered.groups,
+            syncSettings,
+            syncStats: filtered.stats
         };
         localStorage.setItem(APP_LIVE_SOURCE_URL_KEY, sourceUrl);
         localStorage.setItem(APP_LIVE_SOURCE_CACHE_KEY, JSON.stringify(cache));
@@ -174,13 +585,25 @@ async function syncLiveSourceFromUrl(url, options = {}) {
             updateAppManualSyncStatus();
         }
         if (!options.silent && typeof showToast === 'function') {
-            showToast(`直播源同步完成：${parsed.channels.length} 个频道`, 'success');
+            const sourceText = useBundledSubscriptions
+                ? `，订阅成功 ${successfulResults.length}/${sourceEntries.length}`
+                : '';
+            const statsText = filtered.stats
+                ? `，线路通过 ${filtered.stats.passed}/${filtered.stats.total}，过滤 ${filtered.stats.rejected}`
+                : '';
+            const resolutionText = filtered.stats?.unknownResolution
+                ? `，${filtered.stats.unknownResolution} 条线路未识别分辨率并已保留`
+                : '';
+            showToast(`直播源同步完成：${filtered.channels.length} 个频道${sourceText}${statsText}${resolutionText}`, 'success');
         }
         return true;
     } catch (error) {
         console.error('同步直播源失败:', error);
         if (!options.silent && typeof showToast === 'function') {
-            showToast(`同步直播源失败：${error.message || error}`, 'error');
+            const message = error?.name === 'AbortError'
+                ? '响应超时，请增大直播源同步参数中的响应超时'
+                : error.message || error;
+            showToast(`同步直播源失败：${message}`, 'error');
         }
         return false;
     } finally {
@@ -191,6 +614,9 @@ async function syncLiveSourceFromUrl(url, options = {}) {
 }
 
 async function syncLiveSourceFromSettings() {
+    if (!saveAppLiveSyncSettings(true)) {
+        return;
+    }
     const input = document.getElementById('liveSourceUrlInput');
     const sourceUrl = input ? input.value.trim() : '';
     const success = await syncLiveSourceFromUrl(sourceUrl);
@@ -202,11 +628,7 @@ async function syncLiveSourceFromSettings() {
 
 async function openLiveSourceSyncDialog() {
     const savedUrl = localStorage.getItem(APP_LIVE_SOURCE_URL_KEY) || '';
-    const sourceUrl = window.prompt('请输入直播源TXT/M3U地址', savedUrl);
-    if (sourceUrl === null) {
-        return;
-    }
-    const success = await syncLiveSourceFromUrl(sourceUrl);
+    const success = await syncLiveSourceFromUrl(savedUrl);
     if (success) {
         liveState.loaded = false;
         await loadLiveChannels(false);
@@ -336,8 +758,30 @@ async function loadLiveChannels(force = false) {
                 await syncLiveSourceFromUrl(cache.sourceUrl, { silent: true });
                 cache = getAppLiveSourceCache();
             }
+            const bundledCacheExpired = cache?.sourceType === 'bundled'
+                && cache.bundledSourceVersion !== APP_BUNDLED_LIVE_SOURCE_VERSION;
+            if (!cache || !Array.isArray(cache.channels) || cache.channels.length === 0 || bundledCacheExpired) {
+                // 首次使用直接读取 APK 内置直播源，用户后续手动同步的数据仍优先保留。
+                const response = await fetch(APP_BUNDLED_LIVE_SOURCE_URL, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`内置直播源读取失败：HTTP ${response.status}`);
+                }
+                const parsed = parseAppLivePlaylist(await response.text(), 'txt');
+                if (!parsed.channels.length) {
+                    throw new Error('内置直播源未解析到有效频道');
+                }
+                cache = {
+                    sourceUrl: '',
+                    sourceType: 'bundled',
+                    bundledSourceVersion: APP_BUNDLED_LIVE_SOURCE_VERSION,
+                    updatedAt: Date.now(),
+                    channels: parsed.channels,
+                    groups: parsed.groups
+                };
+                localStorage.setItem(APP_LIVE_SOURCE_CACHE_KEY, JSON.stringify(cache));
+            }
             if (!cache || !Array.isArray(cache.channels) || cache.channels.length === 0) {
-                throw new Error('请先在设置中同步直播源');
+                throw new Error('没有可用的直播源，请在设置中手动同步');
             }
 
             liveState.playMode = 'proxy';
@@ -533,11 +977,11 @@ function renderLiveChannels() {
             return `
                 <button onclick="playLiveChannel('${channel.id}')"
                         data-live-channel-id="${channel.id}"
-                        class="live-channel-card bg-[#111] border border-[#333] hover:border-white rounded-lg p-3 text-left transition-colors min-h-[84px] ${channel.id === liveState.currentChannelId ? 'is-playing' : ''}"
-                        style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;">
-                    <span class="live-channel-name block text-white font-medium line-clamp-2" style="display:block;width:100%;color:#fff;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeLiveText(displayName)}</span>
-                    <span class="live-channel-meta block text-xs text-gray-500 mt-2 truncate" style="display:block;width:100%;color:#9ca3af;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        ${escapeLiveText(channel.group || '未分组')}${lineCount > 1 ? ` · ${lineCount} 条线路` : ''}
+                        class="live-channel-card bg-[#111] border border-[#333] hover:border-white rounded-lg p-3 text-left transition-colors min-h-[84px] ${channel.id === liveState.currentChannelId ? 'is-playing' : ''}">
+                    <span class="live-channel-name block text-white font-medium line-clamp-2">${escapeLiveText(displayName)}</span>
+                    <span class="live-channel-meta block text-xs text-gray-500 mt-2 truncate">
+                        <span class="live-channel-group">${escapeLiveText(channel.group || '未分组')}</span>
+                        <span class="live-channel-lines">${lineCount} 条线路</span>
                     </span>
                 </button>
             `;
@@ -1114,7 +1558,7 @@ function handleLiveTvKeydown(event) {
     if (Object.prototype.hasOwnProperty.call(keyActions, event.key)) {
         event.preventDefault();
         const items = Array.from(document.querySelectorAll(
-            '#liveGroupList button, #liveChannelGrid button, #liveRefreshBtn, #liveSourceSelect'
+            '#liveGroupList button, #liveChannelGrid button'
         )).filter(item => item.offsetParent !== null && !item.disabled);
         if (items.length === 0) return;
         const activeIndex = Math.max(0, items.indexOf(document.activeElement));

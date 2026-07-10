@@ -55,6 +55,10 @@ const doubanPageSize = 16; // 一次显示的项目数量
 
 // 初始化豆瓣功能
 function initDouban() {
+    if (localStorage.getItem('doubanEnabled') === null) {
+        localStorage.setItem('doubanEnabled', 'true');
+    }
+
     // 设置豆瓣开关的初始状态
     const doubanToggle = document.getElementById('doubanToggle');
     if (doubanToggle) {
@@ -105,17 +109,7 @@ function initDouban() {
     
     // 换一批按钮事件监听
     setupDoubanRefreshBtn();
-    
-    // 初始加载热门内容
-    if (localStorage.getItem('doubanEnabled') === 'true') {
-        if (window.ProxyAuth && !window.ProxyAuth.hasProxyAuthSync()) {
-            document.addEventListener('passwordVerified', () => {
-                renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-            }, { once: true });
-            return;
-        }
-        renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
-    }
+
 }
 
 // 根据设置更新豆瓣区域的显示状态
@@ -127,16 +121,17 @@ function updateDoubanVisibility() {
     const isSearching = document.getElementById('resultsArea') && 
         !document.getElementById('resultsArea').classList.contains('hidden');
     
-    // 只有在启用且没有搜索结果显示时才显示豆瓣区域
+    // 启用推荐且未显示搜索结果时展示推荐区域。
     if (isEnabled && !isSearching) {
         doubanArea.classList.remove('hidden');
-        if (window.ProxyAuth && !window.ProxyAuth.hasProxyAuthSync()) {
+        const isLocalBundle = typeof isLocalAppBundle === 'function' && isLocalAppBundle();
+        // 本地 App 的代理由 WebView 原生层处理，不需要等待服务端密码验证事件。
+        if (!isLocalBundle && window.ProxyAuth && !window.ProxyAuth.hasProxyAuthSync()) {
             document.addEventListener('passwordVerified', () => {
                 renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
             }, { once: true });
             return;
         }
-        // 如果豆瓣结果为空，重新加载
         if (document.getElementById('douban-results').children.length === 0) {
             renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
         }
@@ -388,7 +383,7 @@ function setupDoubanRefreshBtn() {
         if (doubanPageStart > 9 * doubanPageSize) {
             doubanPageStart = 0;
         }
-        
+
         renderRecommend(doubanCurrentTag, doubanPageSize, doubanPageStart);
     };
 }

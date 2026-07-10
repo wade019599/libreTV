@@ -178,6 +178,26 @@
     margin-bottom: 1rem;
 }
 
+.live-channel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+    text-align: left;
+}
+
+.live-channel-card .live-channel-name,
+.live-channel-card .live-channel-meta {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .live-channel-card:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
@@ -233,6 +253,10 @@
     flex-direction: column;
     gap: 12px;
     min-width: 0;
+}
+
+.live-channel-lines::before {
+    content: " · ";
 }
 
 .live-channel-empty {
@@ -469,7 +493,8 @@ body.jmtv-tv-mode #liveChannelGrid {
     padding-right: 4px;
 }
 
-body.jmtv-tv-mode #liveChannelGrid .live-channel-list {
+body.jmtv-tv-mode #liveChannelGrid .live-channel-list,
+body.jmtv-tv-mode #liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -620,43 +645,36 @@ body.jmtv-tv-mode #livePlayerPanel .border-b button {
 body.jmtv-tv-mode #liveArea .live-toolbar {
     position: fixed;
     left: 32px;
-    right: 96px;
+    right: 24px;
     top: 24px;
     z-index: 98;
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 18px;
     pointer-events: none;
 }
 
 body.jmtv-tv-mode #liveArea .live-actions {
-    flex-direction: row;
-    pointer-events: auto;
-}
-
-body.jmtv-tv-mode #liveSourceSelect,
-body.jmtv-tv-mode #liveRefreshBtn {
-    min-height: 54px;
-    font-size: 18px;
-    border-radius: 6px;
+    display: none !important;
 }
 
 body.jmtv-tv-mode #liveArea .live-browser {
     position: fixed;
     top: 78px;
-    right: 24px;
-    bottom: 22px;
+    right: auto;
+    bottom: 0;
+    left: 0;
     z-index: 95;
-    width: min(360px, 30vw);
+    width: min(440px, 42vw);
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 12px;
+    gap: 8px;
     min-height: 0;
-    padding: 14px;
-    border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     background: rgba(8, 8, 8, .82);
     backdrop-filter: blur(12px);
     overflow: hidden;
@@ -670,25 +688,32 @@ body.jmtv-tv-mode #liveArea .live-sidebar {
 }
 
 body.jmtv-tv-mode #liveChannelGrid {
-    padding-right: 6px;
+    padding-right: 0;
     overflow-x: hidden;
+    scrollbar-color: rgba(255, 255, 255, .24) transparent;
+    scrollbar-width: thin;
 }
 
-body.jmtv-tv-mode #liveChannelGrid .live-channel-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+body.jmtv-tv-mode #liveChannelGrid .live-channel-list,
+body.jmtv-tv-mode #liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
 }
 
 body.jmtv-tv-mode .live-channel-card {
+    position: relative;
     display: flex;
     width: 100%;
     max-width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
+    min-height: 48px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start;
+    gap: 8px;
     overflow: hidden;
-    padding-left: 18px;
+    padding: 6px 12px !important;
+    border-radius: 0 !important;
     text-align: left;
     text-indent: 0;
     transform: none !important;
@@ -697,7 +722,8 @@ body.jmtv-tv-mode .live-channel-card {
 
 body.jmtv-tv-mode .live-channel-card .live-channel-name {
     display: block !important;
-    width: 100%;
+    width: 100% !important;
+    flex: 1 1 100%;
     color: #fff;
     min-width: 0;
     max-width: 100%;
@@ -709,11 +735,14 @@ body.jmtv-tv-mode .live-channel-card .live-channel-name {
     transform: none !important;
     -webkit-line-clamp: unset;
     -webkit-box-orient: unset;
+    font-size: 19px !important;
+    line-height: 1.15;
 }
 
 body.jmtv-tv-mode .live-channel-card .live-channel-meta {
-    display: block !important;
-    width: 100%;
+    display: none !important;
+    width: auto !important;
+    flex: 0 0 auto;
     color: #9ca3af;
     min-width: 0;
     max-width: 100%;
@@ -722,7 +751,30 @@ body.jmtv-tv-mode .live-channel-card .live-channel-meta {
     text-indent: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 0 !important;
     transform: none !important;
+    font-size: 12px !important;
+}
+
+body.jmtv-tv-mode .live-channel-card .live-channel-group {
+    display: none;
+}
+
+body.jmtv-tv-mode .live-channel-card .live-channel-lines::before {
+    content: none;
+}
+
+body.jmtv-tv-mode .live-channel-card.is-playing {
+    box-shadow: inset 4px 0 0 #00d4ff;
+}
+
+body.jmtv-tv-mode .live-channel-card.is-playing span:first-child::before {
+    content: none;
+}
+
+body.jmtv-tv-mode .live-channel-card:focus-visible {
+    outline-width: 2px;
+    outline-offset: -2px;
 }
 
 body.jmtv-tv-mode #liveGroupList {
@@ -743,7 +795,7 @@ body.jmtv-tv-mode .live-group-button {
 
 body.jmtv-tv-mode.jmtv-tv-controls-hidden #liveArea .live-browser {
     opacity: 0;
-    transform: translateX(calc(100% + 32px));
+    transform: translateX(calc(-100% - 32px));
     pointer-events: none;
 }
 
@@ -757,15 +809,21 @@ body.jmtv-tv-mode.jmtv-tv-controls-hidden #livePlayerPanel .border-b {
 @media (max-width: 900px) {
     body.jmtv-tv-mode #liveArea .live-toolbar {
         left: 18px;
-        right: 84px;
+        right: 18px;
         top: 16px;
     }
 
     body.jmtv-tv-mode #liveArea .live-browser {
         top: 74px;
-        right: 14px;
-        bottom: 14px;
-        width: min(320px, 34vw);
+        right: auto;
+        bottom: 0;
+        left: 0;
+        width: min(380px, 46vw);
+    }
+
+    body.jmtv-tv-mode #liveChannelGrid .live-channel-list,
+    body.jmtv-tv-mode #liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     body.jmtv-tv-mode #livePlayerPanel .border-b {

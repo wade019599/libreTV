@@ -253,73 +253,70 @@ npm run dev
 
 > ⚠️ 注意：使用简单静态服务器（如 `python -m http.server` 或 `npx http-server`）时，视频代理功能将不可用，视频无法正常播放。完整功能测试请使用 Node.js 开发服务器。
 
-### Android APK 包装构建
+### Android 无服务器版 APK 构建
 
-项目已新增 `android-wrapper` 目录，可将部署后的 JMTV 网站包装为手机版 APK 与电视端 APK。由于项目依赖 `/proxy/` 和服务端密码注入，推荐先完成网站部署，再用 APK 加载部署后的站点地址。
+项目包含 `android-wrapper` 工程，可直接构建手机端和电视端 APK。构建任务会自动把根目录的 HTML、JavaScript、CSS、图片和本地依赖打入 APK，不需要先部署 JMTV Node、Docker、Vercel、Netlify 或网站服务器。
 
-生成手机版发布包：
+> 无服务器版不是完全离线版。App 启动不依赖 JMTV 服务端，但搜索、节目源或直播源同步、网络视频播放仍需访问第三方接口和媒体地址。
 
-```bash
-cd android-wrapper
-./gradlew assemblePhoneRelease -PLIBRETV_SITE_URL=https://你的域名
-```
-
-生成电视端发布包：
-
-```bash
-./gradlew assembleTvRelease -PLIBRETV_SITE_URL=https://你的域名
-```
-
-如需在同一个 APK 内置主线和备用地址，可额外传入 `LIBRETV_BACKUP_SITE_URL`。打包了备用地址后，App 默认加载主线；用户可在网页右上角“设置”面板的“App线路”中手动切换主线或备用线，选择会保存到 App 本地并立即重新加载对应线路；如果当前加载主线且主线入口失败，App 会静默自动切到备用线。网页功能改动需要先同步到主线/备用服务器，APK 只保存访问地址，不内置网页代码：
-
-```bash
-./gradlew assemblePhoneRelease -PLIBRETV_SITE_URL=http://主线IP:8899 -PLIBRETV_BACKUP_SITE_URL=http://备用IP:8899 -PLIBRETV_APP_BUILD=20260709
-./gradlew assembleTvRelease -PLIBRETV_SITE_URL=http://主线IP:8899 -PLIBRETV_BACKUP_SITE_URL=http://备用IP:8899 -PLIBRETV_APP_BUILD=20260709
-```
+构建前请安装 Android Studio，或准备 JDK 17 与 Android SDK，并确认 `android-wrapper/local.properties` 中的 `sdk.dir` 指向本机 Android SDK。工程已包含 Gradle Wrapper。
 
 Windows PowerShell：
 
 ```powershell
 cd android-wrapper
-.\gradlew.bat assemblePhoneRelease -PLIBRETV_SITE_URL=https://你的域名
-.\gradlew.bat assembleTvRelease -PLIBRETV_SITE_URL=https://你的域名
+
+# 调试包
+.\gradlew.bat assemblePhoneDebug
+.\gradlew.bat assembleTvDebug
+
+# 发布包
+.\gradlew.bat assemblePhoneRelease
+.\gradlew.bat assembleTvRelease
 ```
 
-Windows PowerShell 双地址示例：
+Linux 或 macOS：
+
+```bash
+cd android-wrapper
+./gradlew assemblePhoneDebug
+./gradlew assembleTvDebug
+./gradlew assemblePhoneRelease
+./gradlew assembleTvRelease
+```
+
+无服务器版已移除旧版的 `LIBRETV_SITE_URL` 和 `LIBRETV_BACKUP_SITE_URL` 构建字段，启动入口固定为 APK 内置页面 `https://jmtv.local/`，不会回退到 JMTV 网站服务器。
+
+APK 输出位置：
+
+- 手机端调试包：`android-wrapper/app/build/outputs/apk/phone/debug/app-phone-debug.apk`
+- 电视端调试包：`android-wrapper/app/build/outputs/apk/tv/debug/app-tv-debug.apk`
+- 手机端发布包：`android-wrapper/app/build/outputs/apk/phone/release/app-phone-release.apk`
+- 电视端发布包：`android-wrapper/app/build/outputs/apk/tv/release/app-tv-release.apk`
+
+安装调试包：
 
 ```powershell
 cd android-wrapper
-.\gradlew.bat assemblePhoneRelease -PLIBRETV_SITE_URL=http://主线IP:8899 -PLIBRETV_BACKUP_SITE_URL=http://备用IP:8899 -PLIBRETV_APP_BUILD=20260709
-.\gradlew.bat assembleTvRelease -PLIBRETV_SITE_URL=http://主线IP:8899 -PLIBRETV_BACKUP_SITE_URL=http://备用IP:8899 -PLIBRETV_APP_BUILD=20260709
-```
-
-如果 APK 打开后黑屏或只显示 Android 图标，优先检查构建时是否传入了自己的站点地址。先在手机浏览器访问 `http://服务器IP:8899`，确认能打开后重新构建：
-
-```powershell
-cd android-wrapper
-.\gradlew.bat assemblePhoneRelease -PLIBRETV_SITE_URL=http://服务器IP:8899
-.\gradlew.bat assembleTvRelease -PLIBRETV_SITE_URL=http://服务器IP:8899
-```
-
-App 端 WebView 使用系统默认缓存策略，不会在每次启动时清除缓存；入口地址会带上 `LIBRETV_APP_BUILD` 参数。未手动传入时，Gradle 会自动使用当前时间生成该值，所以原打包命令不需要改变；如需固定版本，也可手动传入 `-PLIBRETV_APP_BUILD=20260709-1`。
-
-服务器端会在页面输出时自动给本地 JS/CSS 加 `jmtv_asset` 版本参数，避免 `index.html` 已更新但 `js/app.js`、`js/player.js` 仍命中旧缓存。更新网页代码后需要重启主线/备用服务器；如需手动指定版本，可设置环境变量 `ASSET_VERSION=20260709-1`。
-
-调试包构建与安装：
-
-```powershell
-.\gradlew.bat assemblePhoneDebug -PLIBRETV_SITE_URL=https://你的域名
-.\gradlew.bat assembleTvDebug -PLIBRETV_SITE_URL=https://你的域名
 adb install -r app/build/outputs/apk/phone/debug/app-phone-debug.apk
 adb install -r app/build/outputs/apk/tv/debug/app-tv-debug.apk
 ```
 
-发布包输出位置：
+修改网页、Android 原生代码或 TV 键盘脚本后需要重新打包并覆盖安装。构建会自动同步网页资源；如果删除或重命名过静态文件，建议先执行 `./gradlew clean` 或 `.\gradlew.bat clean`。
 
-- 手机端：`android-wrapper/app/build/outputs/apk/phone/release/app-phone-release.apk`
-- 电视端：`android-wrapper/app/build/outputs/apk/tv/release/app-tv-release.apk`
+节目源在 App 设置的 App 手动同步区域配置，支持 JMTV 配置、包含 `{ sites: {...} }` 的配置和苹果 CMS API。APK 会打包 `iptv-api/config` 及 `iptv-api/output` 下的直播结果，首次进入直播页自动使用内置 `result.txt`；点击同步直播源且未填写自定义地址时，App 会读取包内 `config/subscribe.txt` 批量同步并合并频道，也可填写 TXT、M3U、M3U8 地址覆盖本地直播缓存。同步数据和直播源同步参数均保存在设备本地。
 
-当前 release 包默认使用本机 debug keystore 签名，便于测试安装。正式分发请改用自己的 release keystore，更多签名和 Android Studio 构建说明见 `android-wrapper/README.md`。
+直播源同步参数已开放给 App 用户：
+
+- 开启测速：默认关闭；开启后会逐条探测直播线路，请求失败或超时的线路不会写入本地缓存。
+- 速率过滤：默认关闭；开启测速后，可按最小速率过滤线路，默认最小速率为 `0.1 MB/s`。
+- 分辨率过滤：默认关闭；开启测速后，可按最小 `1280x720`、最大 `3840x2160` 过滤已声明分辨率的 HLS 线路。无法识别分辨率的线路会保留，避免误删有效直播源。
+- 测速并发：默认 `10`，可设置 `1-20`。
+- 响应超时：默认 `5` 秒，可设置 `1-60` 秒，同时用于直播源清单下载和单次线路探测。
+
+测速会增加同步耗时、设备网络流量和 CPU 占用，因此默认关闭。参数修改后点击“保存同步参数”或直接执行“同步直播源”即可保存并应用。
+
+电视端构建包含遥控器焦点导航和搜索屏幕键盘。当前 release 包默认使用本机 debug keystore，正式分发前应更换正式签名。完整说明见 `android-wrapper/README.md`。
 
 ### 从压缩包 Docker 部署
 

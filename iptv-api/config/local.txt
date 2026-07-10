@@ -1,6 +1,13 @@
-# 这是本地源列表，一行一个源，格式为：频道名称,接口地址
-# 如果有多个本地源文件，可以在config目录下创建local目录进行存放，支持txt/m3u文件格式
-# 支持设置白名单：接口后添加$!
-# The local source list, one line per source, format: channel name, interface address
-# Support setting whitelist: add $! after the interface
-# If there are multiple local source files, you can create a local directory under the config directory for storage, supporting txt/m3u file formats
+# 这是订阅源列表，每行一个订阅地址
+# 支持设置UA：https://xxx.com/subscribe.m3u UA="xxx"
+# This is a list of subscription sources, with one subscription address per line
+# Supports setting UA: https://xxx.com/subscribe.m3u UA="xxx"
+https://live.zbds.top/tv/iptv4.txt
+https://live.zbds.top/tv/iptv4.m3u
+
+# https://live.zbds.top/tv/iptv6.txt
+# https://live.zbds.top/tv/iptv6.m3u
+
+[WHITELIST]
+# 以下是订阅源的白名单，白名单内的订阅源获取的接口将不会参与测速，始终保留至结果最前。
+# This is the whitelist for subscription sources. Subscription sources in the whitelist will not participate in speed testing and will always be retained at the front of the results.

@@ -18,6 +18,11 @@ function isPasswordProtected() {
  * 为了安全考虑，所有部署都必须设置密码
  */
 function isPasswordRequired() {
+    const isLocalAndroidApp = window.location.hostname === 'jmtv.local'
+        && /JMTV-Android/i.test(navigator.userAgent || '');
+    if (isLocalAndroidApp) {
+        return false;
+    }
     return !isPasswordProtected();
 }
 

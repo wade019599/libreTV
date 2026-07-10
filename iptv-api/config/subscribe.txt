@@ -5,9 +5,24 @@
 https://live.zbds.top/tv/iptv4.txt
 https://live.zbds.top/tv/iptv4.m3u
 https://live.hacks.tools/tv/iptv4.txt
-
-# https://live.zbds.top/tv/iptv6.txt
-# https://live.zbds.top/tv/iptv6.m3u
+https://gh-proxy.com/raw.githubusercontent.com/suxuang/myIPTV/main/ipv4.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/ipv4.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E5%92%AA%E5%92%95%E7%9B%B4%E6%92%AD.txt
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E5%B0%8F%E8%82%A5%E7%BE%8A.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E5%B9%BF%E4%B8%9C%E7%94%B5%E4%BF%A1.txt
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E7%A7%BB%E5%8A%A8IPTV.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E8%99%8E%E7%89%99%E5%BD%B1%E8%A7%86.txt
+https://live.zbds.top/tv/iptv6.txt
+https://live.zbds.top/tv/iptv6.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/ipv6.m3u
+https://raw.githubusercontent.com/suxuang/myIPTV/refs/heads/main/%E7%A7%BB%E5%8A%A8IPV6.txt
+https://raw.githubusercontent.com/hujingguang/ChinaIPTV/main/cnTV_AutoUpdate.m3u8
+https://raw.githubusercontent.com/vbskycn/iptv/master/tv/iptv4.m3u
+https://gh-proxy.com/raw.githubusercontent.com/vbskycn/iptv/refs/heads/master/tv/iptv4.m3u
+https://raw.githubusercontent.com/best-fan/iptv-sources/main/cn_cctv.m3u8
+https://raw.githubusercontent.com/hujingguang/ChinaIPTV/main/cnTV_AutoUpdate.m3u8
+https://raw.githubusercontent.com/vbskycn/iptv/master/tv/iptv4.m3u
+https://raw.githubusercontent.com/hujingguang/ChinaIPTV/main/cnTV_AutoUpdate.m3u8
 
 [WHITELIST]
 # 以下是订阅源的白名单，白名单内的订阅源获取的接口将不会参与测速，始终保留至结果最前。

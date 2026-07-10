@@ -203,6 +203,10 @@ function closeTvSearchKeyboard() {
     if (keyboard) {
         keyboard.classList.add('hidden');
     }
+    const toggleButton = document.getElementById('tvKeyboardToggle');
+    if (toggleButton) {
+        toggleButton.focus();
+    }
 }
 
 function toggleTvSearchKeyboard() {
@@ -229,7 +233,6 @@ function pressTvSearchKey(key) {
 
     if (key === 'close') {
         closeTvSearchKeyboard();
-        input.focus();
         return;
     }
     if (key === 'search') {
@@ -967,6 +970,9 @@ function initAppManualSyncControls() {
     if (appLiveSyncBtn) {
         appLiveSyncBtn.classList.remove('hidden');
     }
+    if (typeof initAppLiveSyncSettingsControls === 'function' && typeof getAppLiveSyncSettings === 'function') {
+        initAppLiveSyncSettingsControls(getAppLiveSyncSettings());
+    }
     updateAppManualSyncStatus();
 }
 
@@ -981,7 +987,10 @@ function updateAppManualSyncStatus() {
         return;
     }
     const updatedAt = cache.updatedAt ? new Date(cache.updatedAt).toLocaleString() : '';
-    status.textContent = `已同步直播频道 ${cache.channels.length} 个${updatedAt ? ` · ${updatedAt}` : ''}`;
+    const sourceText = cache.sourceType === 'subscriptions'
+        ? ` · 内置订阅 ${cache.sourceCount || 0}/${cache.sourceTotal || 0}`
+        : cache.sourceType === 'bundled' ? ' · APK内置结果' : '';
+    status.textContent = `已同步直播频道 ${cache.channels.length} 个${sourceText}${updatedAt ? ` · ${updatedAt}` : ''}`;
 }
 
 function setAppLineMode(mode) {
