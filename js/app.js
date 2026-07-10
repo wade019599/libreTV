@@ -185,6 +185,10 @@ function closeTvSearchKeyboard() {
     if (keyboard) {
         keyboard.classList.add('hidden');
     }
+    const toggleButton = document.getElementById('tvKeyboardToggle');
+    if (toggleButton) {
+        toggleButton.focus();
+    }
 }
 
 function toggleTvSearchKeyboard() {
@@ -211,7 +215,6 @@ function pressTvSearchKey(key) {
 
     if (key === 'close') {
         closeTvSearchKeyboard();
-        input.focus();
         return;
     }
     if (key === 'search') {

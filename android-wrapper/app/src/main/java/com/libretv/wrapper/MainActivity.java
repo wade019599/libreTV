@@ -23,6 +23,10 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 public class MainActivity extends Activity {
     private static final String PREFS_NAME = "jmtv_app";
     private static final String PREF_LINE_MODE = "line_mode";
@@ -132,6 +136,14 @@ public class MainActivity extends Activity {
         });
         targetWebView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if ("tv".equals(BuildConfig.JMTV_DEVICE_TYPE)) {
+                    injectTvSearchKeyboard(view);
+                }
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme();
@@ -168,6 +180,24 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void injectTvSearchKeyboard(WebView targetWebView) {
+        if (targetWebView == null) {
+            return;
+        }
+        try (InputStream stream = getAssets().open("tv-keyboard.js");
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int length;
+            while ((length = stream.read(buffer)) != -1) {
+                output.write(buffer, 0, length);
+            }
+            String script = output.toString(StandardCharsets.UTF_8.name());
+            targetWebView.evaluateJavascript(script, null);
+        } catch (Exception error) {
+            android.util.Log.e("JMTV-TV", "注入电视搜索键盘失败", error);
+        }
     }
 
     private void configureFullscreen() {
