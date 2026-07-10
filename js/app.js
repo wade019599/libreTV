@@ -26,6 +26,12 @@ let currentVideoTitle = '';
 // 全局变量用于倒序状态
 let episodesReversed = false;
 let apiHealthTimer = null;
+const TV_SEARCH_KEYBOARD_ROWS = [
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+];
 
 // 页面初始化
 document.addEventListener('DOMContentLoaded', async function () {
@@ -98,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // 设置事件监听器
     setupEventListeners();
+    initTvSearchKeyboard();
 
     // 根据设置进入默认内容，直接访问 /live 时保持直播页
     const preferredMode = localStorage.getItem(CONTENT_MODE_STORAGE_KEY) || 'vod';
@@ -112,6 +119,120 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 启动API可用性定时检测
     startApiHealthMonitor();
 });
+
+function isTvSearchKeyboardDevice() {
+    const ua = navigator.userAgent || '';
+    return /JMTV-TV|Android\s+TV|AFT[A-Z0-9]*|SmartTV|Tizen|Web0S/i.test(ua);
+}
+
+function initTvSearchKeyboard() {
+    if (!isTvSearchKeyboardDevice()) {
+        return;
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const toggleButton = document.getElementById('tvKeyboardToggle');
+    const keyboard = document.getElementById('tvSearchKeyboard');
+    if (!searchInput || !toggleButton || !keyboard) {
+        return;
+    }
+
+    toggleButton.classList.remove('hidden');
+    searchInput.setAttribute('inputmode', 'none');
+    renderTvSearchKeyboard();
+    searchInput.addEventListener('focus', openTvSearchKeyboard);
+    searchInput.addEventListener('click', openTvSearchKeyboard);
+}
+
+function renderTvSearchKeyboard() {
+    const rows = document.getElementById('tvSearchKeyboardRows');
+    if (!rows) {
+        return;
+    }
+
+    const letterRows = TV_SEARCH_KEYBOARD_ROWS.map(row => `
+        <div class="grid gap-2" style="grid-template-columns: repeat(${row.length}, minmax(0, 1fr));">
+            ${row.map(key => `
+                <button type="button"
+                        class="tv-key h-11 rounded-md bg-[#222] hover:bg-white focus:bg-white text-white hover:text-black focus:text-black text-base font-medium outline-none transition-colors"
+                        onclick="pressTvSearchKey('${key}')">${key}</button>
+            `).join('')}
+        </div>
+    `).join('');
+
+    rows.innerHTML = `
+        ${letterRows}
+        <div class="grid grid-cols-5 gap-2">
+            <button type="button" class="tv-key h-11 rounded-md bg-[#222] hover:bg-white focus:bg-white text-white hover:text-black focus:text-black text-sm outline-none transition-colors" onclick="pressTvSearchKey('backspace')">退格</button>
+            <button type="button" class="tv-key h-11 rounded-md bg-[#222] hover:bg-white focus:bg-white text-white hover:text-black focus:text-black text-sm outline-none transition-colors" onclick="pressTvSearchKey('space')">空格</button>
+            <button type="button" class="tv-key h-11 rounded-md bg-[#222] hover:bg-white focus:bg-white text-white hover:text-black focus:text-black text-sm outline-none transition-colors" onclick="pressTvSearchKey('clear')">清空</button>
+            <button type="button" class="tv-key h-11 rounded-md bg-white text-black hover:bg-gray-200 focus:bg-gray-200 text-sm outline-none transition-colors" onclick="pressTvSearchKey('search')">搜索</button>
+            <button type="button" class="tv-key h-11 rounded-md bg-[#222] hover:bg-white focus:bg-white text-white hover:text-black focus:text-black text-sm outline-none transition-colors" onclick="pressTvSearchKey('close')">关闭</button>
+        </div>
+    `;
+}
+
+function openTvSearchKeyboard() {
+    const keyboard = document.getElementById('tvSearchKeyboard');
+    if (!keyboard || !isTvSearchKeyboardDevice()) {
+        return;
+    }
+    keyboard.classList.remove('hidden');
+}
+
+function closeTvSearchKeyboard() {
+    const keyboard = document.getElementById('tvSearchKeyboard');
+    if (keyboard) {
+        keyboard.classList.add('hidden');
+    }
+}
+
+function toggleTvSearchKeyboard() {
+    const keyboard = document.getElementById('tvSearchKeyboard');
+    if (!keyboard) {
+        return;
+    }
+    if (keyboard.classList.contains('hidden')) {
+        openTvSearchKeyboard();
+        const firstKey = keyboard.querySelector('.tv-key');
+        if (firstKey) {
+            firstKey.focus();
+        }
+        return;
+    }
+    closeTvSearchKeyboard();
+}
+
+function pressTvSearchKey(key) {
+    const input = document.getElementById('searchInput');
+    if (!input) {
+        return;
+    }
+
+    if (key === 'close') {
+        closeTvSearchKeyboard();
+        input.focus();
+        return;
+    }
+    if (key === 'search') {
+        search();
+        return;
+    }
+
+    let value = input.value || '';
+    if (key === 'backspace') {
+        value = value.slice(0, -1);
+    } else if (key === 'space') {
+        value += ' ';
+    } else if (key === 'clear') {
+        value = '';
+    } else {
+        value += key;
+    }
+
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 async function syncExternalAPISites() {
     if (!window.extendAPISites || typeof SOURCE_SYNC_CONFIG === 'undefined' || !SOURCE_SYNC_CONFIG.enabled) {
