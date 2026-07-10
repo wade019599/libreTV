@@ -24,6 +24,12 @@ const LIVE_FREEZE_TIMEOUT = 6000;
 const LIVE_PAUSE_TIMEOUT = 2500;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_PATTERN = /推流|rtmp|srt|gb28181|webrtc/i;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_VALUES = ['hls_txt', 'hls_m3u'];
+const LIVE_SOURCE_OPTIONS = [
+    { value: 'txt', label: '综合线路' },
+    { value: 'ipv4_txt', label: 'IPv4线路' },
+    { value: 'ipv6_txt', label: 'IPv6线路' },
+    { value: 'hls_txt', label: '推流线路' }
+];
 
 function isTvAppWebView() {
     const ua = navigator.userAgent || '';
@@ -134,8 +140,7 @@ function showVodPage() {
 async function loadLiveChannels(force = false) {
     const status = document.getElementById('liveStatus');
     const notice = document.getElementById('liveConfigNotice');
-    const sourceSelect = document.getElementById('liveSourceSelect');
-    const source = sourceSelect ? sourceSelect.value : liveState.currentSource;
+    const source = liveState.currentSource || LIVE_SOURCE_OPTIONS[0].value;
     liveState.currentSource = source;
     liveState.loading = true;
     if (status) status.textContent = '正在加载直播频道...';
@@ -604,17 +609,12 @@ async function playLiveChannel(channelId) {
     liveState.currentChannelId = channel.id;
     liveState.playToken += 1;
     const playToken = liveState.playToken;
-    const sourceSelect = document.getElementById('liveSourceSelect');
-    const sourceOptions = sourceSelect
-        ? Array.from(sourceSelect.options).map(option => ({
-            value: option.value,
-            label: option.textContent.trim() || option.value
-        })).filter(option => option.value && isAutoSwitchableLiveSource(option))
-        : [];
-    // 单个直播源内的线路全部失败后，继续在其它直播源中查找同名频道。
+    const sourceOptions = LIVE_SOURCE_OPTIONS.filter(option => isAutoSwitchableLiveSource(option));
+    // 备用源只用于补充当前频道的播放地址，不改变用户选择的源和节目列表。
     const triedSources = new Set([liveState.currentSource]);
     const targetName = String(channel.name || '').trim().toLowerCase();
     const targetGroup = String(channel.group || '未分组').trim().toLowerCase();
+    let playbackSourceLabel = '';
     if (title) title.textContent = channel.name;
     if (meta) meta.textContent = `${channel.group || '未分组'} · 线路 1/${lineUrls.length}`;
     panel.classList.remove('hidden');
@@ -635,24 +635,33 @@ async function playLiveChannel(channelId) {
                     continue;
                 }
                 triedSources.add(sourceOption.value);
-                if (sourceSelect) {
-                    sourceSelect.value = sourceOption.value;
-                }
-                liveState.currentSource = sourceOption.value;
                 setLiveLoading(true, `当前线路不可用，正在尝试${sourceOption.label}`);
                 if (meta) {
                     meta.textContent = `${channel.group || '未分组'} · 正在切换到${sourceOption.label}`;
                 }
-                await loadLiveChannels(true);
+                let sourceChannels = [];
+                try {
+                    const response = await fetch(`/api/live/channels?source=${encodeURIComponent(sourceOption.value)}&force=1`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.code !== 200) {
+                        throw new Error(data.msg || `${sourceOption.label}加载失败`);
+                    }
+                    sourceChannels = Array.isArray(data.channels) ? data.channels : [];
+                } catch (error) {
+                    console.warn(`读取备用直播源失败：${sourceOption.label}`, error);
+                    continue;
+                }
                 if (playToken !== liveState.playToken) {
                     return;
                 }
-                const sameGroupChannel = liveState.channels.find(item => {
+                const sameGroupChannel = sourceChannels.find(item => {
                     const name = String(item?.name || '').trim().toLowerCase();
                     const group = String(item?.group || '未分组').trim().toLowerCase();
                     return name === targetName && group === targetGroup && getLiveChannelUrls(item).length > 0;
                 });
-                const sameNameChannel = liveState.channels.find(item => {
+                const sameNameChannel = sourceChannels.find(item => {
                     const name = String(item?.name || '').trim().toLowerCase();
                     return name === targetName && getLiveChannelUrls(item).length > 0;
                 });
@@ -662,15 +671,14 @@ async function playLiveChannel(channelId) {
                 }
                 channel = matchedChannel;
                 lineUrls = getLiveChannelUrls(channel);
-                liveState.currentChannelId = channel.id;
+                playbackSourceLabel = sourceOption.label;
                 if (title) {
                     title.textContent = channel.name;
                 }
                 if (meta) {
-                    meta.textContent = `${channel.group || '未分组'} · 线路 1/${lineUrls.length}`;
+                    meta.textContent = `${channel.group || '未分组'} · ${playbackSourceLabel} · 线路 1/${lineUrls.length}`;
                 }
-                renderLiveChannels();
-                console.warn(`直播当前来源线路均不可用，已自动切换到${sourceOption.label}`);
+                console.warn(`直播当前来源线路均不可用，已后台切换到${sourceOption.label}`);
                 startLine(0);
                 return;
             }
@@ -693,7 +701,8 @@ async function playLiveChannel(channelId) {
             return;
         }
         if (meta) {
-            meta.textContent = `${channel.group || '未分组'} · 线路 ${lineIndex + 1}/${lineUrls.length}`;
+            const sourceText = playbackSourceLabel ? ` · ${playbackSourceLabel}` : '';
+            meta.textContent = `${channel.group || '未分组'}${sourceText} · 线路 ${lineIndex + 1}/${lineUrls.length}`;
         }
         setLiveLoading(true, `正在加载线路 ${lineIndex + 1}/${lineUrls.length}`);
         setLiveResumeButton(false);
@@ -879,7 +888,7 @@ function handleLiveTvKeydown(event) {
     if (Object.prototype.hasOwnProperty.call(keyActions, event.key)) {
         event.preventDefault();
         const items = Array.from(document.querySelectorAll(
-            '#liveGroupList button, #liveChannelGrid button, #liveRefreshBtn, #liveSourceSelect'
+            '#liveGroupList button, #liveChannelGrid button'
         )).filter(item => item.offsetParent !== null && !item.disabled);
         if (items.length === 0) return;
         const activeIndex = Math.max(0, items.indexOf(document.activeElement));
@@ -902,10 +911,6 @@ function escapeLiveText(value) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const sourceSelect = document.getElementById('liveSourceSelect');
-    if (sourceSelect) {
-        sourceSelect.addEventListener('change', () => loadLiveChannels(true));
-    }
     if (window.location.pathname === '/live') {
         showLivePage();
     }

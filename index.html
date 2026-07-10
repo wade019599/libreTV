@@ -15,7 +15,7 @@
     
     <script src="libs/tailwindcss.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/index.css?v=20260708-tv-final-fix">
+    <link rel="stylesheet" href="css/index.css?v=20260710-tv-live-no-source-controls">
 </head>
 <body class="page-bg text-white">
     <!-- 将历史记录按钮移到左上角，并缩小尺寸 -->
@@ -328,21 +328,12 @@
 	            <!-- 直播区域：默认隐藏 -->
 	            <div id="liveArea" class="w-full hidden my-8">
 		                <div class="live-shell mx-auto max-w-7xl px-2">
-		                    <div class="live-toolbar flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
-	                        <div>
-	                            <h2 class="text-2xl font-bold gradient-text">电视直播</h2>
-	                            <p id="liveStatus" class="text-sm text-gray-400 mt-1">正在准备直播频道</p>
-	                        </div>
-		                        <div class="live-actions flex flex-col sm:flex-row gap-2">
-	                            <select id="liveSourceSelect" class="bg-[#111] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-white">
-	                                <option value="txt">综合线路</option>
-	                                <option value="ipv4_txt">IPv4线路</option>
-	                                <option value="ipv6_txt">IPv6线路</option>
-	                                <option value="hls_txt">推流线路</option>
-	                            </select>
-	                            <button id="liveRefreshBtn" onclick="loadLiveChannels(true)" class="bg-white text-black hover:bg-gray-200 rounded-lg px-4 py-2 text-sm transition-colors">刷新</button>
-	                        </div>
-	                    </div>
+	                    <div class="live-toolbar flex flex-col lg:flex-row lg:items-center justify-start gap-4 mb-5">
+                        <div>
+                            <h2 class="text-2xl font-bold gradient-text">电视直播</h2>
+                            <p id="liveStatus" class="text-sm text-gray-400 mt-1">正在准备直播频道</p>
+                        </div>
+                    </div>
 
 	                    <div id="liveConfigNotice" class="hidden border border-[#333] bg-[#111] rounded-lg p-4 text-sm text-gray-300 mb-4">
 	                        未配置 IPTV 服务地址。请在 JMTV 容器环境变量中设置 <span class="text-white">IPTV_API_BASE_URL</span>，例如 <span class="text-white">http://你的服务器IP:5180</span>。
@@ -520,7 +511,7 @@
 	    <script src="js/search.js"></script>
 	    <script src="js/app.js?v=20260709-settings-resource"></script>
 	    <script src="libs/hls.min.js"></script>
-	    <script src="js/live.js?v=20260709-live-skip-push-auto"></script>
+	    <script src="js/live.js?v=20260710-live-no-source-controls"></script>
 
 	    <!-- PWA 注册 -->
     <script src="js/pwa-register.js"></script>
