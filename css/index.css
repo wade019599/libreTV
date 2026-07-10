@@ -1,0 +1,997 @@
+/* 主页特定样式 */
+
+/* 历史记录和设置按钮定位样式 */
+.top-corner-button {
+    position: fixed;
+    z-index: 10;
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.top-corner-button:hover {
+    background: #333;
+    border-color: white;
+}
+
+/* 搜索区域样式 */
+.search-box {
+    height: 3.5rem;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+}
+
+.search-button {
+    width: 5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    color: black;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.search-button:hover {
+    background: #f0f0f0;
+}
+
+.search-input {
+    flex: 1;
+    background: #111;
+    border-top: 1px solid #333;
+    border-bottom: 1px solid #333;
+    color: white;
+    padding: 0 1.5rem;
+    font-size: 1rem;
+    outline: none;
+    transition: background-color 0.2s;
+}
+
+.search-input:focus {
+    background: #191919;
+}
+
+/* 最近搜索记录样式 */
+.recent-search-tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    margin: 0.25rem;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 0.5rem;
+    color: #e5e7eb;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.recent-search-tag:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* 豆瓣区域样式 */
+.douban-container {
+    margin: 2rem auto;
+    max-width: 1280px;
+    padding: 0 0.5rem;
+}
+
+.douban-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.douban-toggle {
+    display: flex;
+    align-items: center;
+    background: #222;
+    border-radius: 9999px;
+    padding: 0.25rem;
+}
+
+.douban-toggle-button {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 9999px;
+}
+
+.douban-toggle-button.active {
+    background: #db2777;
+    color: white;
+}
+
+.douban-toggle-button:not(.active) {
+    color: #9ca3af;
+}
+
+.douban-toggle-button:not(.active):hover {
+    color: white;
+}
+
+.douban-refresh-button {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+    background: #db2777;
+    color: white;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.douban-refresh-button:hover {
+    background: #be185d;
+}
+
+.douban-tags-container {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.douban-tags {
+    display: flex;
+    gap: 0.5rem;
+    min-width: max-content;
+}
+
+.douban-tag {
+    padding: 0.25rem 0.75rem;
+    background: rgba(219, 39, 119, 0.1);
+    border: 1px solid rgba(219, 39, 119, 0.2);
+    border-radius: 0.5rem;
+    color: #f9a8d4;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.douban-tag:hover {
+    background: rgba(219, 39, 119, 0.2);
+    border-color: rgba(219, 39, 119, 0.4);
+}
+
+.douban-tag.active {
+    background: #db2777;
+    border-color: #db2777;
+    color: white;
+}
+
+/* 搜索结果样式 */
+.search-results-container {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 0.5rem;
+}
+
+.search-result-stats {
+    text-align: right;
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-bottom: 1rem;
+}
+
+.live-channel-card:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+#liveChannelGrid.live-channel-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    align-items: start;
+    width: 100%;
+}
+
+#liveChannelGrid.live-channel-columns.is-single-group {
+    grid-template-columns: 1fr;
+}
+
+#liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+#liveChannelGrid.live-channel-columns.is-empty {
+    display: block;
+}
+
+.live-channel-column {
+    min-width: 0;
+}
+
+.live-channel-column-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 32px;
+    margin-bottom: 10px;
+    padding: 0 2px;
+    color: #f5f5f5;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.live-channel-column-title span:last-child {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.live-channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.live-channel-empty {
+    width: 100%;
+}
+
+#liveVideo {
+    display: block;
+    max-height: 70vh;
+}
+
+.live-video-frame {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    line-height: 0;
+}
+
+.live-video-frame.is-idle #liveVideo,
+.live-video-frame.is-loading #liveVideo {
+    opacity: 0;
+}
+
+.live-resume-button {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 7;
+    transform: translate(-50%, -50%);
+    min-width: 112px;
+    min-height: 44px;
+    padding: 0 18px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 6px;
+    background: rgba(10, 10, 10, .86);
+    color: #fff;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+}
+
+.live-resume-button:hover,
+.live-resume-button:focus-visible {
+    border-color: rgba(255, 255, 255, .72);
+    background: rgba(28, 28, 28, .94);
+    outline: none;
+}
+
+.live-resume-button.hidden {
+    display: none;
+}
+
+#liveVideo::-webkit-media-controls-start-playback-button,
+#liveVideo::-webkit-media-controls-overlay-play-button {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    -webkit-appearance: none;
+}
+
+#liveVideo:not([controls])::-webkit-media-controls,
+#liveVideo:not([controls])::-webkit-media-controls-enclosure,
+#liveVideo:not([controls])::-webkit-media-controls-panel {
+    display: none !important;
+}
+
+.live-loading-overlay {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transform: translate(-50%, -50%);
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .62);
+    color: #f5f5f5;
+    font-size: 14px;
+    line-height: 1;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+}
+
+.live-loading-overlay.hidden {
+    display: none;
+}
+
+.live-loading-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, .28);
+    border-top-color: #00d4ff;
+    border-radius: 999px;
+    animation: live-loading-spin .82s linear infinite;
+}
+
+@keyframes live-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+body.jmtv-tv-mode {
+    overflow: hidden;
+    background: #050505;
+}
+
+body.jmtv-tv-mode #liveArea {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: block;
+    margin: 0;
+    padding: 28px 34px;
+    background: #050505;
+}
+
+body.jmtv-tv-mode #liveArea.hidden {
+    display: none;
+}
+
+body.jmtv-tv-mode #liveArea .live-shell {
+    max-width: none;
+    height: 100%;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 420px);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 18px;
+}
+
+body.jmtv-tv-mode #liveArea .live-toolbar {
+    grid-column: 1 / -1;
+    margin: 0;
+    align-items: center;
+}
+
+body.jmtv-tv-mode #liveArea h2 {
+    font-size: 34px;
+    line-height: 1.1;
+}
+
+body.jmtv-tv-mode #liveStatus {
+    font-size: 16px;
+}
+
+body.jmtv-tv-mode #livePlayerPanel {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0;
+    border-color: #262626;
+    border-radius: 6px;
+    background: #000;
+}
+
+body.jmtv-tv-mode #livePlayerPanel.hidden {
+    display: flex;
+}
+
+body.jmtv-tv-mode #livePlayerPanel .border-b {
+    min-height: 76px;
+    border-color: #262626;
+    background: #101010;
+}
+
+body.jmtv-tv-mode #livePlayerTitle {
+    font-size: 26px;
+}
+
+body.jmtv-tv-mode #livePlayerMeta {
+    font-size: 15px;
+}
+
+body.jmtv-tv-mode #liveVideo {
+    flex: 1;
+    width: 100%;
+    max-height: none;
+    min-height: 0;
+    aspect-ratio: auto;
+    background: #000;
+}
+
+body.jmtv-tv-mode #liveArea .live-browser {
+    grid-column: 2;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+    min-height: 0;
+}
+
+body.jmtv-tv-mode #liveArea .live-sidebar {
+    height: auto;
+    padding: 12px;
+    border-color: #2a2a2a;
+    border-radius: 6px;
+    background: #111;
+}
+
+body.jmtv-tv-mode #liveSearchInput {
+    display: none;
+}
+
+body.jmtv-tv-mode #liveGroupList {
+    display: flex;
+    gap: 8px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+body.jmtv-tv-mode .live-group-button {
+    width: auto;
+    min-width: 108px;
+    min-height: 46px;
+    text-align: center;
+    font-size: 17px;
+}
+
+body.jmtv-tv-mode #liveChannelGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+body.jmtv-tv-mode #liveChannelGrid .live-channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.jmtv-tv-mode #liveChannelGrid .live-channel-column-title {
+    min-height: 28px;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+body.jmtv-tv-mode .live-channel-card {
+    min-height: 72px;
+    border-radius: 6px;
+    padding: 12px 16px;
+    background: #141414;
+}
+
+body.jmtv-tv-mode .live-channel-card span:first-child {
+    font-size: 22px;
+    line-height: 1.2;
+}
+
+body.jmtv-tv-mode .live-channel-card span:last-child {
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+body.jmtv-tv-mode .live-channel-card.is-playing {
+    border-color: #00d4ff;
+    background: #10242b;
+}
+
+body.jmtv-tv-mode .live-channel-card.is-playing span:first-child::before {
+    content: "正在播放 ";
+    color: #00d4ff;
+    font-size: 15px;
+    margin-right: 6px;
+}
+
+body.jmtv-tv-mode .live-channel-card:focus-visible,
+body.jmtv-tv-mode .live-group-button:focus-visible,
+body.jmtv-tv-mode #liveRefreshBtn:focus-visible,
+body.jmtv-tv-mode #liveSourceSelect:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+    border-color: #fff;
+}
+
+body.jmtv-tv-mode footer {
+    display: none;
+}
+
+body.jmtv-tv-mode .fixed.top-4.right-4 {
+    z-index: 130;
+}
+
+body.jmtv-tv-mode #settingsPanel {
+    z-index: 140;
+    width: min(420px, 90vw);
+}
+
+@media (max-width: 900px) {
+    body.jmtv-tv-mode #liveArea {
+        padding: 18px;
+    }
+
+    body.jmtv-tv-mode #liveArea .live-shell {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 14px;
+    }
+
+    body.jmtv-tv-mode .live-channel-card span:first-child {
+        font-size: 19px;
+    }
+}
+
+/* TV 端直播：全屏播放 + 浮层选台 */
+body.jmtv-tv-mode #liveArea {
+    padding: 0;
+}
+
+body.jmtv-tv-mode #liveArea .live-shell {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+body.jmtv-tv-mode #livePlayerPanel,
+body.jmtv-tv-mode #livePlayerPanel.hidden {
+    position: fixed;
+    inset: 0;
+    z-index: 82;
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: #000;
+}
+
+body.jmtv-tv-mode #liveVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+body.jmtv-tv-mode .live-video-frame {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+body.jmtv-tv-mode #liveVideo::-webkit-media-controls {
+    display: none !important;
+}
+
+body.jmtv-tv-mode .live-loading-overlay {
+    padding: 14px 18px;
+    font-size: 18px;
+}
+
+body.jmtv-tv-mode .live-loading-spinner {
+    width: 22px;
+    height: 22px;
+}
+
+body.jmtv-tv-mode #livePlayerPanel .border-b {
+    position: fixed;
+    left: 32px;
+    bottom: 30px;
+    z-index: 96;
+    width: min(520px, 52vw);
+    min-height: 0;
+    padding: 14px 18px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 6px;
+    background: rgba(8, 8, 8, .72);
+    backdrop-filter: blur(10px);
+}
+
+body.jmtv-tv-mode #livePlayerPanel .border-b button {
+    display: none;
+}
+
+body.jmtv-tv-mode #liveArea .live-toolbar {
+    position: fixed;
+    left: 32px;
+    right: 96px;
+    top: 24px;
+    z-index: 98;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 18px;
+    pointer-events: none;
+}
+
+body.jmtv-tv-mode #liveArea .live-actions {
+    flex-direction: row;
+    pointer-events: auto;
+}
+
+body.jmtv-tv-mode #liveSourceSelect,
+body.jmtv-tv-mode #liveRefreshBtn {
+    min-height: 54px;
+    font-size: 18px;
+    border-radius: 6px;
+}
+
+body.jmtv-tv-mode #liveArea .live-browser {
+    position: fixed;
+    top: 78px;
+    right: 24px;
+    bottom: 22px;
+    z-index: 95;
+    width: min(360px, 30vw);
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+    min-height: 0;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 6px;
+    background: rgba(8, 8, 8, .82);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: opacity .22s ease, transform .22s ease;
+}
+
+body.jmtv-tv-mode #liveArea .live-sidebar {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+body.jmtv-tv-mode #liveChannelGrid {
+    padding-right: 6px;
+    overflow-x: hidden;
+}
+
+body.jmtv-tv-mode #liveChannelGrid .live-channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.jmtv-tv-mode .live-channel-card {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+    padding-left: 18px;
+    text-align: left;
+    text-indent: 0;
+    transform: none !important;
+    background: rgba(30, 30, 30, .92);
+}
+
+body.jmtv-tv-mode .live-channel-card .live-channel-name {
+    display: block !important;
+    width: 100%;
+    color: #fff;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: left;
+    text-indent: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: none !important;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+}
+
+body.jmtv-tv-mode .live-channel-card .live-channel-meta {
+    display: block !important;
+    width: 100%;
+    color: #9ca3af;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: left;
+    text-indent: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: none !important;
+}
+
+body.jmtv-tv-mode #liveGroupList {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+body.jmtv-tv-mode #liveGroupList::-webkit-scrollbar {
+    display: none;
+}
+
+body.jmtv-tv-mode .live-group-button {
+    flex: 0 0 auto;
+}
+
+body.jmtv-tv-mode.jmtv-tv-controls-hidden #liveArea .live-browser {
+    opacity: 0;
+    transform: translateX(calc(100% + 32px));
+    pointer-events: none;
+}
+
+body.jmtv-tv-mode.jmtv-tv-controls-hidden #liveArea .live-toolbar,
+body.jmtv-tv-mode.jmtv-tv-controls-hidden #livePlayerPanel .border-b {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease;
+}
+
+@media (max-width: 900px) {
+    body.jmtv-tv-mode #liveArea .live-toolbar {
+        left: 18px;
+        right: 84px;
+        top: 16px;
+    }
+
+    body.jmtv-tv-mode #liveArea .live-browser {
+        top: 74px;
+        right: 14px;
+        bottom: 14px;
+        width: min(320px, 34vw);
+    }
+
+    body.jmtv-tv-mode #livePlayerPanel .border-b {
+        left: 18px;
+        bottom: 18px;
+        width: min(430px, 48vw);
+    }
+}
+
+/* 手机端直播：播放器优先、列表紧凑 */
+@media (max-width: 640px) {
+    body:not(.jmtv-tv-mode) #liveArea {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    body:not(.jmtv-tv-mode) #liveArea .live-toolbar {
+        gap: 12px;
+    }
+
+    body:not(.jmtv-tv-mode) #liveArea .live-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        width: 100%;
+    }
+
+    body:not(.jmtv-tv-mode) #livePlayerPanel {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    body:not(.jmtv-tv-mode) #liveVideo {
+        max-height: 42vh;
+    }
+
+    body:not(.jmtv-tv-mode) #liveChannelGrid {
+        gap: 10px;
+    }
+
+    body:not(.jmtv-tv-mode) #liveChannelGrid.live-channel-columns,
+    body:not(.jmtv-tv-mode) #liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
+        grid-template-columns: 1fr;
+    }
+
+    body:not(.jmtv-tv-mode) .live-channel-card {
+        min-height: 70px;
+        padding: 10px;
+    }
+}
+
+/* 手机 App 直播：单列频道、横向分类、不允许横向溢出 */
+body.jmtv-phone-mode {
+    overflow-x: hidden;
+}
+
+body.jmtv-phone-mode #liveArea {
+    width: 100%;
+    max-width: 100vw;
+    margin: 14px 0 24px;
+    overflow-x: hidden;
+}
+
+body.jmtv-phone-mode #liveArea .live-shell {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 12px;
+    display: block;
+    box-sizing: border-box;
+}
+
+body.jmtv-phone-mode #liveArea .live-toolbar {
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+body.jmtv-phone-mode #liveArea h2 {
+    font-size: 30px;
+    line-height: 1.1;
+    text-align: center;
+}
+
+body.jmtv-phone-mode #liveStatus {
+    text-align: center;
+    font-size: 15px;
+}
+
+body.jmtv-phone-mode #liveArea .live-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    width: min(100%, 360px);
+    margin: 0 auto;
+}
+
+body.jmtv-phone-mode #liveSourceSelect,
+body.jmtv-phone-mode #liveRefreshBtn {
+    min-width: 0;
+    min-height: 48px;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+body.jmtv-phone-mode #livePlayerPanel {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    width: 100%;
+    margin: 0 0 12px;
+    border-radius: 8px;
+}
+
+body.jmtv-phone-mode #liveVideo {
+    max-height: 42vh;
+}
+
+body.jmtv-phone-mode #liveArea .live-browser {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+body.jmtv-phone-mode #liveArea .live-sidebar {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 12px;
+    padding: 10px;
+    box-sizing: border-box;
+    border-radius: 8px;
+}
+
+body.jmtv-phone-mode #liveSearchInput {
+    height: 44px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-size: 15px;
+}
+
+body.jmtv-phone-mode #liveGroupList {
+    display: flex;
+    gap: 8px;
+    max-width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+body.jmtv-phone-mode #liveGroupList::-webkit-scrollbar {
+    display: none;
+}
+
+body.jmtv-phone-mode .live-group-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 86px;
+    min-height: 44px;
+    padding: 8px 12px;
+    text-align: center;
+    white-space: normal;
+}
+
+body.jmtv-phone-mode #liveChannelGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    gap: 10px;
+}
+
+body.jmtv-phone-mode #liveChannelGrid .live-channel-list,
+body.jmtv-phone-mode #liveChannelGrid.live-channel-columns.is-single-group .live-channel-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+body.jmtv-phone-mode .live-channel-card {
+    width: 100%;
+    min-height: 76px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+body.jmtv-phone-mode .live-channel-card span:first-child {
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+body.jmtv-phone-mode .live-channel-card span:last-child {
+    font-size: 14px;
+}
+
+/* 响应式网格布局 */
+.search-results-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (max-width: 640px) {
+    .search-results-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+    .search-results-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .search-results-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1025px) {
+    .search-results-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

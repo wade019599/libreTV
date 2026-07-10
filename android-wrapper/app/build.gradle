@@ -1,0 +1,66 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.libretv.wrapper"
+    compileSdk 35
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId "com.libretv.wrapper"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName "1.0.0"
+
+        def siteUrl = project.findProperty("LIBRETV_SITE_URL") ?: "https://libretv.is-an.org"
+        def backupSiteUrl = project.findProperty("LIBRETV_BACKUP_SITE_URL") ?: ""
+        def appBuild = project.findProperty("LIBRETV_APP_BUILD") ?: new Date().format("yyyyMMddHHmmss")
+        buildConfigField "String", "LIBRETV_SITE_URL", "\"${siteUrl}\""
+        buildConfigField "String", "LIBRETV_BACKUP_SITE_URL", "\"${backupSiteUrl}\""
+        buildConfigField "String", "LIBRETV_APP_BUILD", "\"${appBuild}\""
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    flavorDimensions "device"
+    productFlavors {
+        phone {
+            dimension "device"
+            applicationIdSuffix ".phone"
+            buildConfigField "String", "JMTV_DEVICE_TYPE", "\"phone\""
+            manifestPlaceholders = [
+                    appLabel: "啾咪视频",
+                    leanbackRequired: "false",
+                    orientation: "unspecified"
+            ]
+        }
+        tv {
+            dimension "device"
+            applicationIdSuffix ".tv"
+            buildConfigField "String", "JMTV_DEVICE_TYPE", "\"tv\""
+            manifestPlaceholders = [
+                    appLabel: "啾咪视频",
+                    leanbackRequired: "true",
+                    orientation: "landscape"
+            ]
+        }
+    }
+}
