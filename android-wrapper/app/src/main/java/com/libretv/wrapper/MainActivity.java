@@ -23,7 +23,21 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
 public class MainActivity extends Activity {
+    private static final String LOCAL_APP_ORIGIN = "https://jmtv.local";
+    private static final String LOCAL_ASSET_PREFIX = "www/";
     private static final String PREFS_NAME = "jmtv_app";
     private static final String PREF_LINE_MODE = "line_mode";
     private static final String LINE_MODE_PRIMARY = "primary";
@@ -62,8 +76,7 @@ public class MainActivity extends Activity {
         }
         loadedLineMode = lineMode;
         if (savedInstanceState == null) {
-            String targetUrl = LINE_MODE_BACKUP.equals(lineMode) ? backupSiteUrl : primarySiteUrl;
-            webView.loadUrl(withAppVersionParam(targetUrl));
+            webView.loadUrl(withAppVersionParam(LOCAL_APP_ORIGIN + "/"));
         } else {
             webView.restoreState(savedInstanceState);
         }
@@ -132,6 +145,14 @@ public class MainActivity extends Activity {
         });
         targetWebView.setWebViewClient(new WebViewClient() {
             @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                if (request == null || request.getUrl() == null) {
+                    return null;
+                }
+                return handleLocalRequest(request.getUrl());
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme();
@@ -168,6 +189,226 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private WebResourceResponse handleLocalRequest(Uri uri) {
+        String host = uri.getHost();
+        String path = uri.getPath() == null ? "/" : uri.getPath();
+        if (!"jmtv.local".equalsIgnoreCase(host)) {
+            return null;
+        }
+        if (path.startsWith("/proxy/")) {
+            return handleProxyRequest(uri);
+        }
+        if ("/api/live/media".equals(path)) {
+            return handleLiveMediaRequest(uri);
+        }
+        return serveBundledAsset(path);
+    }
+
+    private WebResourceResponse serveBundledAsset(String requestPath) {
+        String path = requestPath == null || requestPath.trim().isEmpty() ? "/" : requestPath.trim();
+        if ("/".equals(path) || "/live".equals(path)) {
+            path = "/index.html";
+        }
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        if (path.contains("..") || path.startsWith("api/") || path.startsWith("proxy/")) {
+            return createTextResponse("text/plain", 404, "Not Found", "Not Found");
+        }
+
+        String assetPath = LOCAL_ASSET_PREFIX + path;
+        String mimeType = getMimeType(path);
+        try {
+            InputStream stream = getAssets().open(assetPath);
+            if ("text/html".equals(mimeType)) {
+                String html = readText(stream);
+                // 本地 App 不依赖服务端 PASSWORD 注入，避免离线入口被部署校验弹窗卡住。
+                html = html.replace("{{PASSWORD}}", "");
+                return createTextResponse(mimeType, 200, "OK", html);
+            }
+            return createStreamResponse(mimeType, 200, "OK", stream);
+        } catch (Exception error) {
+            if (!path.contains(".")) {
+                try {
+                    InputStream stream = getAssets().open(LOCAL_ASSET_PREFIX + "index.html");
+                    String html = readText(stream).replace("{{PASSWORD}}", "");
+                    return createTextResponse("text/html", 200, "OK", html);
+                } catch (Exception ignored) {
+                    return createTextResponse("text/plain", 404, "Not Found", "Not Found");
+                }
+            }
+            return createTextResponse("text/plain", 404, "Not Found", "Not Found");
+        }
+    }
+
+    private WebResourceResponse handleProxyRequest(Uri uri) {
+        try {
+            String encodedPath = uri.getEncodedPath() == null ? "" : uri.getEncodedPath();
+            String encodedTarget = encodedPath.length() > "/proxy/".length()
+                    ? encodedPath.substring("/proxy/".length())
+                    : "";
+            String targetUrl = URLDecoder.decode(encodedTarget, StandardCharsets.UTF_8.name());
+            return fetchRemoteResource(targetUrl, false);
+        } catch (Exception error) {
+            return createTextResponse("text/plain", 502, "Bad Gateway", "App本地代理请求失败: " + error.getMessage());
+        }
+    }
+
+    private WebResourceResponse handleLiveMediaRequest(Uri uri) {
+        try {
+            String targetUrl = uri.getQueryParameter("url");
+            boolean playlist = "1".equals(uri.getQueryParameter("playlist"));
+            return fetchRemoteResource(targetUrl, playlist);
+        } catch (Exception error) {
+            return createTextResponse("text/plain", 502, "Bad Gateway", "App直播代理请求失败: " + error.getMessage());
+        }
+    }
+
+    private WebResourceResponse fetchRemoteResource(String targetUrl, boolean forcePlaylistRewrite) {
+        if (targetUrl == null || targetUrl.trim().isEmpty()) {
+            return createTextResponse("text/plain", 400, "Bad Request", "缺少目标URL");
+        }
+        String normalizedUrl = targetUrl.trim();
+        if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+            return createTextResponse("text/plain", 400, "Bad Request", "仅支持HTTP/HTTPS URL");
+        }
+
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(normalizedUrl).openConnection();
+            connection.setInstanceFollowRedirects(true);
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(30000);
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 JMTV-Android");
+            connection.setRequestProperty("Accept", "*/*");
+            int statusCode = connection.getResponseCode();
+            InputStream stream = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            if (stream == null) {
+                stream = new ByteArrayInputStream(new byte[0]);
+            }
+
+            String contentType = connection.getContentType();
+            String mimeType = normalizeMimeType(contentType, normalizedUrl);
+            boolean isPlaylist = forcePlaylistRewrite
+                    || normalizedUrl.toLowerCase(Locale.ROOT).contains(".m3u8")
+                    || String.valueOf(contentType).toLowerCase(Locale.ROOT).contains("mpegurl");
+            if (isPlaylist) {
+                String rewritten = rewriteLivePlaylist(readText(stream), normalizedUrl);
+                return createTextResponse("application/vnd.apple.mpegurl", statusCode, "OK", rewritten);
+            }
+            return createStreamResponse(mimeType, statusCode, "OK", stream);
+        } catch (Exception error) {
+            return createTextResponse("text/plain", 502, "Bad Gateway", "远程请求失败: " + error.getMessage());
+        }
+    }
+
+    private String rewriteLivePlaylist(String content, String baseUrl) {
+        String[] lines = String.valueOf(content).split("\\r?\\n", -1);
+        StringBuilder builder = new StringBuilder();
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty()) {
+                builder.append(rawLine).append('\n');
+                continue;
+            }
+            if (line.startsWith("#")) {
+                String rewritten = rawLine;
+                int searchFrom = 0;
+                while (true) {
+                    int keyIndex = rewritten.indexOf("URI=\"", searchFrom);
+                    if (keyIndex < 0) {
+                        break;
+                    }
+                    int valueStart = keyIndex + 5;
+                    int valueEnd = rewritten.indexOf('"', valueStart);
+                    if (valueEnd < 0) {
+                        break;
+                    }
+                    try {
+                        String target = new URL(new URL(baseUrl), rewritten.substring(valueStart, valueEnd)).toString();
+                        String replacement = LOCAL_APP_ORIGIN + "/api/live/media?url=" + encodeUrl(target);
+                        rewritten = rewritten.substring(0, valueStart) + replacement + rewritten.substring(valueEnd);
+                        searchFrom = valueStart + replacement.length();
+                    } catch (Exception ignored) {
+                        searchFrom = valueEnd + 1;
+                    }
+                }
+                builder.append(rewritten).append('\n');
+                continue;
+            }
+            try {
+                String target = new URL(new URL(baseUrl), line).toString();
+                String playlistFlag = target.toLowerCase(Locale.ROOT).contains(".m3u8") ? "&playlist=1" : "";
+                builder.append(LOCAL_APP_ORIGIN)
+                        .append("/api/live/media?url=")
+                        .append(encodeUrl(target))
+                        .append(playlistFlag)
+                        .append('\n');
+            } catch (Exception ignored) {
+                builder.append(rawLine).append('\n');
+            }
+        }
+        return builder.toString();
+    }
+
+    private String readText(InputStream stream) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int length;
+        while ((length = stream.read(buffer)) != -1) {
+            output.write(buffer, 0, length);
+        }
+        stream.close();
+        return output.toString(StandardCharsets.UTF_8.name());
+    }
+
+    private WebResourceResponse createTextResponse(String mimeType, int statusCode, String reason, String body) {
+        return createStreamResponse(
+                mimeType,
+                statusCode,
+                reason,
+                new ByteArrayInputStream(String.valueOf(body).getBytes(StandardCharsets.UTF_8))
+        );
+    }
+
+    private WebResourceResponse createStreamResponse(String mimeType, int statusCode, String reason, InputStream stream) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Access-Control-Allow-Origin", "*");
+        headers.put("Cache-Control", "no-store");
+        return new WebResourceResponse(
+                mimeType,
+                "UTF-8",
+                statusCode,
+                reason == null ? "OK" : reason,
+                headers,
+                stream
+        );
+    }
+
+    private String getMimeType(String path) {
+        String lowerPath = String.valueOf(path).toLowerCase(Locale.ROOT);
+        if (lowerPath.endsWith(".html")) return "text/html";
+        if (lowerPath.endsWith(".js")) return "application/javascript";
+        if (lowerPath.endsWith(".css")) return "text/css";
+        if (lowerPath.endsWith(".json")) return "application/json";
+        if (lowerPath.endsWith(".png")) return "image/png";
+        if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) return "image/jpeg";
+        if (lowerPath.endsWith(".svg")) return "image/svg+xml";
+        if (lowerPath.endsWith(".ico")) return "image/x-icon";
+        if (lowerPath.endsWith(".txt")) return "text/plain";
+        return "application/octet-stream";
+    }
+
+    private String normalizeMimeType(String contentType, String targetUrl) {
+        if (contentType != null && !contentType.trim().isEmpty()) {
+            return contentType.split(";", 2)[0].trim();
+        }
+        return getMimeType(targetUrl);
+    }
+
+    private String encodeUrl(String value) throws Exception {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
     }
 
     private void configureFullscreen() {
@@ -234,8 +475,13 @@ public class MainActivity extends Activity {
 
     public class AppBridge {
         @JavascriptInterface
+        public boolean isLocalBundle() {
+            return true;
+        }
+
+        @JavascriptInterface
         public boolean hasBackupLine() {
-            return backupSiteUrl != null && !backupSiteUrl.isEmpty();
+            return false;
         }
 
         @JavascriptInterface
@@ -246,14 +492,11 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setLineMode(String mode) {
             runOnUiThread(() -> {
-                lineMode = LINE_MODE_BACKUP.equals(mode) && backupSiteUrl != null && !backupSiteUrl.isEmpty()
-                        ? LINE_MODE_BACKUP
-                        : LINE_MODE_PRIMARY;
+                lineMode = LINE_MODE_PRIMARY;
                 SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
                 prefs.edit().putString(PREF_LINE_MODE, lineMode).apply();
-                String targetUrl = LINE_MODE_BACKUP.equals(lineMode) ? backupSiteUrl : primarySiteUrl;
                 loadedLineMode = lineMode;
-                webView.loadUrl(withAppVersionParam(targetUrl));
+                webView.loadUrl(withAppVersionParam(LOCAL_APP_ORIGIN + "/"));
             });
         }
     }

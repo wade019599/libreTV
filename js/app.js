@@ -14,6 +14,8 @@ const DEFAULT_SELECTED_APIS = [
 const DEFAULT_SELECTED_APIS_VERSION = 'default-selected-apis-v2-10';
 const CONTENT_MODE_STORAGE_KEY = 'preferredContentMode';
 const YELLOW_FILTER_UNLOCK_QUERY = '/我爱你';
+const APP_LIVE_SOURCE_CACHE_KEY = 'appLiveSourceCache';
+const APP_LIVE_SOURCE_URL_KEY = 'appLiveSourceUrl';
 let selectedAPIs = JSON.parse(localStorage.getItem('selectedAPIs') || JSON.stringify(DEFAULT_SELECTED_APIS)); // 默认选中资源
 let customAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]'); // 存储自定义API列表
 
@@ -46,7 +48,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         localStorage.setItem('hasInitializedDefaults', 'true');
     }
 
-    await syncExternalAPISites();
+    if (!isLocalAppBundle()) {
+        await syncExternalAPISites();
+    }
 
     const apiHealthStatus = getApiHealthStatus();
     Object.keys(apiHealthStatus).forEach(apiKey => {
@@ -93,8 +97,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 设置启动内容模式按钮状态
     updatePreferredContentModeButtons();
     initAppLineModeSetting();
+    initAppManualSyncControls();
     window.addEventListener('load', initAppLineModeSetting, { once: true });
+    window.addEventListener('load', initAppManualSyncControls, { once: true });
     setTimeout(initAppLineModeSetting, 500);
+    setTimeout(initAppManualSyncControls, 500);
 
     // 设置事件监听器
     setupEventListeners();
@@ -112,6 +119,17 @@ document.addEventListener('DOMContentLoaded', async function () {
     // 启动API可用性定时检测
     startApiHealthMonitor();
 });
+
+function isLocalAppBundle() {
+    try {
+        if (window.JMTVApp && typeof window.JMTVApp.isLocalBundle === 'function') {
+            return window.JMTVApp.isLocalBundle();
+        }
+    } catch (error) {
+        console.warn('检查App本地模式失败:', error);
+    }
+    return /JMTV-Android/i.test(navigator.userAgent || '') && window.location.hostname === 'jmtv.local';
+}
 
 async function syncExternalAPISites() {
     if (!window.extendAPISites || typeof SOURCE_SYNC_CONFIG === 'undefined' || !SOURCE_SYNC_CONFIG.enabled) {
@@ -657,6 +675,66 @@ function addCustomApi() {
     showToast('已添加自定义API: ' + name, 'success');
 }
 
+function normalizeApiBaseUrl(url) {
+    let apiUrl = String(url || '').trim();
+    if (apiUrl.endsWith('/')) {
+        apiUrl = apiUrl.slice(0, -1);
+    }
+    return apiUrl;
+}
+
+function saveSyncedCustomApi(name, url, detail = '', isAdult = false) {
+    const apiUrl = normalizeApiBaseUrl(url);
+    if (!name || !/^https?:\/\/.+/.test(apiUrl)) {
+        return false;
+    }
+
+    const existedIndex = customAPIs.findIndex(api => normalizeApiBaseUrl(api.url) === apiUrl);
+    if (existedIndex !== -1) {
+        const existedSelectedId = `custom_${existedIndex}`;
+        if (!selectedAPIs.includes(existedSelectedId)) {
+            selectedAPIs.push(existedSelectedId);
+        }
+        return false;
+    }
+
+    customAPIs.push({
+        name: String(name).trim(),
+        url: apiUrl,
+        detail: normalizeApiBaseUrl(detail),
+        isAdult: Boolean(isAdult)
+    });
+    selectedAPIs.push(`custom_${customAPIs.length - 1}`);
+    return true;
+}
+
+function syncApiSitesToCustomApis(sites) {
+    if (!sites || typeof sites !== 'object') {
+        return 0;
+    }
+
+    let addedCount = 0;
+    Object.entries(sites).forEach(([key, site]) => {
+        if (!site || typeof site !== 'object') {
+            return;
+        }
+        const apiUrl = site.api || site.url;
+        const name = site.name || key;
+        const detail = site.detail || '';
+        const isAdult = site.isAdult || site.adult || site.type === 'adult';
+        if (saveSyncedCustomApi(name, apiUrl, detail, isAdult)) {
+            addedCount += 1;
+        }
+    });
+
+    localStorage.setItem('customAPIs', JSON.stringify(customAPIs));
+    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+    renderCustomAPIsList();
+    updateSelectedApiCount();
+    checkAdultAPIsSelected();
+    return addedCount;
+}
+
 // 移除自定义API
 function removeCustomApi(index) {
     if (index < 0 || index >= customAPIs.length) return;
@@ -745,6 +823,44 @@ function initAppLineModeSetting() {
     } catch (error) {
         console.warn('初始化 App 线路设置失败:', error);
     }
+}
+
+function initAppManualSyncControls() {
+    if (!isLocalAppBundle()) {
+        return;
+    }
+
+    const setting = document.getElementById('appManualSyncSetting');
+    const liveSourceInput = document.getElementById('liveSourceUrlInput');
+    const liveSourceSelect = document.getElementById('liveSourceSelect');
+    const appLiveSyncBtn = document.getElementById('appLiveSyncBtn');
+    if (setting) {
+        setting.classList.remove('hidden');
+    }
+    if (liveSourceInput) {
+        liveSourceInput.value = localStorage.getItem(APP_LIVE_SOURCE_URL_KEY) || '';
+    }
+    if (liveSourceSelect) {
+        liveSourceSelect.classList.add('hidden');
+    }
+    if (appLiveSyncBtn) {
+        appLiveSyncBtn.classList.remove('hidden');
+    }
+    updateAppManualSyncStatus();
+}
+
+function updateAppManualSyncStatus() {
+    const status = document.getElementById('appManualSyncStatus');
+    if (!status || !isLocalAppBundle()) {
+        return;
+    }
+    const cache = getAppLiveSourceCache();
+    if (!cache || !Array.isArray(cache.channels) || cache.channels.length === 0) {
+        status.textContent = '直播源未同步';
+        return;
+    }
+    const updatedAt = cache.updatedAt ? new Date(cache.updatedAt).toLocaleString() : '';
+    status.textContent = `已同步直播频道 ${cache.channels.length} 个${updatedAt ? ` · ${updatedAt}` : ''}`;
 }
 
 function setAppLineMode(mode) {
@@ -1570,7 +1686,7 @@ async function importConfigFromUrl() {
 	                throw '响应不是有效的JSON格式';
 	            }
 
-	            if (config.name === 'JMTV-Settings') {
+		            if (config.name === 'JMTV-Settings') {
 	                // 验证哈希
 	                const dataHash = await sha256(JSON.stringify(config.data));
 	                if (dataHash !== config.hash) throw '配置文件哈希值不匹配';
@@ -1584,17 +1700,21 @@ async function importConfigFromUrl() {
 	                setTimeout(() => {
 	                    window.location.reload();
 	                }, 3000);
-	                return;
-	            }
+		                return;
+		            }
 
-	            if (config && Array.isArray(config.list) && (config.code !== undefined || config.page !== undefined || config.total !== undefined)) {
-	                const urlObj = new URL(url);
-	                let apiUrl = `${urlObj.origin}${urlObj.pathname}`;
-	                if (apiUrl.endsWith('/')) {
-	                    apiUrl = apiUrl.slice(0, -1);
-	                }
+                    if (config && config.sites && typeof config.sites === 'object') {
+                        const addedCount = syncApiSitesToCustomApis(config.sites);
+                        const totalCount = Object.keys(config.sites).length;
+                        showToast(`节目源同步完成：新增 ${addedCount} 个，已存在 ${totalCount - addedCount} 个。`, 'success');
+                        return;
+                    }
 
-	                const existedIndex = customAPIs.findIndex(api => api.url === apiUrl);
+		            if (config && Array.isArray(config.list) && (config.code !== undefined || config.page !== undefined || config.total !== undefined)) {
+		                const urlObj = new URL(url);
+		                let apiUrl = normalizeApiBaseUrl(`${urlObj.origin}${urlObj.pathname}`);
+
+		                const existedIndex = customAPIs.findIndex(api => normalizeApiBaseUrl(api.url) === apiUrl);
 	                if (existedIndex !== -1) {
 	                    const existedSelectedId = `custom_${existedIndex}`;
 	                    if (!selectedAPIs.includes(existedSelectedId)) {

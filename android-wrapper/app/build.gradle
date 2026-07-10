@@ -2,12 +2,20 @@ plugins {
     id "com.android.application"
 }
 
+def bundledWebAssetsDir = layout.buildDirectory.dir("generated/jmtv-web-assets")
+
 android {
     namespace "com.libretv.wrapper"
     compileSdk 35
 
     buildFeatures {
         buildConfig true
+    }
+
+    sourceSets {
+        main {
+            assets.srcDir(bundledWebAssetsDir)
+        }
     }
 
     defaultConfig {
@@ -64,3 +72,24 @@ android {
         }
     }
 }
+
+tasks.register("syncBundledWebAssets", Copy) {
+    def webRoot = rootProject.projectDir.parentFile
+    into(bundledWebAssetsDir.map { it.dir("www") })
+    from(webRoot) {
+        include "index.html"
+        include "about.html"
+        include "player.html"
+        include "watch.html"
+        include "manifest.json"
+        include "robots.txt"
+        include "service-worker.js"
+        include "VERSION.txt"
+        include "css/**"
+        include "image/**"
+        include "js/**"
+        include "libs/**"
+    }
+}
+
+preBuild.dependsOn("syncBundledWebAssets")

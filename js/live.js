@@ -25,6 +25,194 @@ const LIVE_PAUSE_TIMEOUT = 2500;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_PATTERN = /推流|rtmp|srt|gb28181|webrtc/i;
 const LIVE_AUTO_SWITCH_BLOCKED_SOURCE_VALUES = ['hls_txt', 'hls_m3u'];
 
+function getAppLiveSourceCache() {
+    try {
+        return JSON.parse(localStorage.getItem(APP_LIVE_SOURCE_CACHE_KEY) || 'null');
+    } catch (error) {
+        console.warn('读取App直播源缓存失败:', error);
+        return null;
+    }
+}
+
+function makeAppLiveChannelId(group, name, index) {
+    const text = `${group}|${name}|${index}`;
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0;
+    }
+    return `app_${Math.abs(hash).toString(36)}_${index}`;
+}
+
+function parseAppLivePlaylist(text, type = 'txt') {
+    const channels = [];
+    const groups = [];
+    const channelIndex = new Map();
+    const addGroup = group => {
+        const groupName = String(group || '未分组').trim() || '未分组';
+        if (!groups.includes(groupName)) {
+            groups.push(groupName);
+        }
+        return groupName;
+    };
+    const addChannel = (name, group, url, logo = '') => {
+        const channelName = String(name || '').trim();
+        const channelUrl = String(url || '').trim();
+        if (!channelName || !/^https?:\/\//i.test(channelUrl)) {
+            return;
+        }
+        const groupName = addGroup(group);
+        const key = `${groupName.toLowerCase()}|${channelName.toLowerCase()}`;
+        const existing = channelIndex.get(key);
+        if (existing) {
+            if (!existing.urls.includes(channelUrl)) {
+                existing.urls.push(channelUrl);
+            }
+            return;
+        }
+        const channel = {
+            id: makeAppLiveChannelId(groupName, channelName, channels.length),
+            name: channelName,
+            group: groupName,
+            logo,
+            url: channelUrl,
+            urls: [channelUrl]
+        };
+        channels.push(channel);
+        channelIndex.set(key, channel);
+    };
+
+    if (type === 'm3u' || /^#EXTM3U/i.test(String(text || '').trim())) {
+        let pending = null;
+        String(text || '').split(/\r?\n/).forEach(rawLine => {
+            const line = rawLine.trim();
+            if (!line) {
+                return;
+            }
+            if (line.startsWith('#EXTINF')) {
+                const groupMatch = line.match(/group-title="([^"]*)"/i);
+                const logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+                const commaIndex = line.lastIndexOf(',');
+                pending = {
+                    name: commaIndex >= 0 ? line.slice(commaIndex + 1).trim() : '未知频道',
+                    group: groupMatch ? groupMatch[1].trim() : '未分组',
+                    logo: logoMatch ? logoMatch[1].trim() : ''
+                };
+                return;
+            }
+            if (line.startsWith('#')) {
+                return;
+            }
+            if (pending) {
+                addChannel(pending.name, pending.group, line, pending.logo);
+                pending = null;
+            }
+        });
+        return { channels, groups };
+    }
+
+    let currentGroup = '未分组';
+    String(text || '').split(/\r?\n/).forEach(rawLine => {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#')) {
+            return;
+        }
+        const parts = line.split(/[,，]/);
+        if (parts.length >= 2 && parts[1].trim() === '#genre#') {
+            currentGroup = addGroup(parts[0]);
+            return;
+        }
+        const separatorIndex = line.search(/[,，]/);
+        if (separatorIndex <= 0) {
+            return;
+        }
+        const channelName = line.slice(0, separatorIndex).trim();
+        const channelUrl = line.slice(separatorIndex + 1).split('$')[0].trim();
+        addChannel(channelName, currentGroup, channelUrl);
+    });
+    return { channels, groups };
+}
+
+async function syncLiveSourceFromUrl(url, options = {}) {
+    const sourceUrl = String(url || '').trim();
+    if (!/^https?:\/\/.+/i.test(sourceUrl)) {
+        if (!options.silent && typeof showToast === 'function') {
+            showToast('直播源地址格式不正确', 'warning');
+        }
+        return false;
+    }
+
+    if (!options.silent && typeof showLoading === 'function') {
+        showLoading('正在同步直播源...');
+    }
+    try {
+        const proxiedUrl = window.ProxyAuth?.addAuthToProxyUrl ?
+            await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(sourceUrl)) :
+            PROXY_URL + encodeURIComponent(sourceUrl);
+        const response = await fetch(proxiedUrl, {
+            headers: { 'Accept': 'text/plain,application/vnd.apple.mpegurl,*/*' }
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const content = await response.text();
+        const type = /\.m3u8?(?:$|\?)/i.test(sourceUrl) || /^#EXTM3U/i.test(content.trim()) ? 'm3u' : 'txt';
+        const parsed = parseAppLivePlaylist(content, type);
+        if (!parsed.channels.length) {
+            throw new Error('未解析到有效频道');
+        }
+        const cache = {
+            sourceUrl,
+            sourceType: type,
+            updatedAt: Date.now(),
+            channels: parsed.channels,
+            groups: parsed.groups
+        };
+        localStorage.setItem(APP_LIVE_SOURCE_URL_KEY, sourceUrl);
+        localStorage.setItem(APP_LIVE_SOURCE_CACHE_KEY, JSON.stringify(cache));
+        if (typeof updateAppManualSyncStatus === 'function') {
+            updateAppManualSyncStatus();
+        }
+        if (!options.silent && typeof showToast === 'function') {
+            showToast(`直播源同步完成：${parsed.channels.length} 个频道`, 'success');
+        }
+        return true;
+    } catch (error) {
+        console.error('同步直播源失败:', error);
+        if (!options.silent && typeof showToast === 'function') {
+            showToast(`同步直播源失败：${error.message || error}`, 'error');
+        }
+        return false;
+    } finally {
+        if (!options.silent && typeof hideLoading === 'function') {
+            hideLoading();
+        }
+    }
+}
+
+async function syncLiveSourceFromSettings() {
+    const input = document.getElementById('liveSourceUrlInput');
+    const sourceUrl = input ? input.value.trim() : '';
+    const success = await syncLiveSourceFromUrl(sourceUrl);
+    if (success && liveState.loaded) {
+        liveState.loaded = false;
+        await loadLiveChannels(false);
+    }
+}
+
+async function openLiveSourceSyncDialog() {
+    const savedUrl = localStorage.getItem(APP_LIVE_SOURCE_URL_KEY) || '';
+    const sourceUrl = window.prompt('请输入直播源TXT/M3U地址', savedUrl);
+    if (sourceUrl === null) {
+        return;
+    }
+    const success = await syncLiveSourceFromUrl(sourceUrl);
+    if (success) {
+        liveState.loaded = false;
+        await loadLiveChannels(false);
+    }
+}
+
 function isTvAppWebView() {
     const ua = navigator.userAgent || '';
     return /JMTV-TV|Android\s+TV|AFT[A-Z0-9]*|SmartTV|Tizen|Web0S/i.test(ua);
@@ -142,6 +330,49 @@ async function loadLiveChannels(force = false) {
     if (notice) notice.classList.add('hidden');
 
     try {
+        if (typeof isLocalAppBundle === 'function' && isLocalAppBundle()) {
+            let cache = getAppLiveSourceCache();
+            if (force && cache?.sourceUrl) {
+                await syncLiveSourceFromUrl(cache.sourceUrl, { silent: true });
+                cache = getAppLiveSourceCache();
+            }
+            if (!cache || !Array.isArray(cache.channels) || cache.channels.length === 0) {
+                throw new Error('请先在设置中同步直播源');
+            }
+
+            liveState.playMode = 'proxy';
+            liveState.channels = dedupeLiveChannels(cache.channels);
+            const groupNames = [];
+            (Array.isArray(cache.groups) ? cache.groups : []).forEach(group => {
+                const groupName = String(group || '').trim();
+                if (groupName && !groupNames.includes(groupName)) {
+                    groupNames.push(groupName);
+                }
+            });
+            liveState.channels.forEach(channel => {
+                const groupName = String(channel?.group || '未分组').trim() || '未分组';
+                if (!groupNames.includes(groupName)) {
+                    groupNames.push(groupName);
+                }
+            });
+            liveState.groups = ['全部', ...groupNames];
+            liveState.activeGroup = '全部';
+            liveState.loaded = true;
+            renderLiveGroups();
+            renderLiveChannels();
+            if (isTvAppWebView() && liveState.channels.length > 0 && !liveState.currentChannelId) {
+                playLiveChannel(liveState.channels[0].id);
+                setTimeout(() => focusCurrentLiveChannel(), 200);
+            }
+            if (status) {
+                status.textContent = `本地频道 ${liveState.channels.length} 个`;
+            }
+            if (typeof updateAppManualSyncStatus === 'function') {
+                updateAppManualSyncStatus();
+            }
+            return;
+        }
+
         const response = await fetch(`/api/live/channels?source=${encodeURIComponent(source)}${force ? '&force=1' : ''}`, {
             headers: { 'Accept': 'application/json' }
         });
@@ -340,6 +571,10 @@ function renderLiveChannels() {
 }
 
 async function buildLiveMediaUrl(url, playlist = false) {
+    if (typeof isLocalAppBundle === 'function' && isLocalAppBundle()) {
+        const playlistQuery = playlist ? '&playlist=1' : '';
+        return `/api/live/media?url=${encodeURIComponent(url)}${playlistQuery}`;
+    }
     // 直连模式下，播放流量由客户机直接访问直播源，服务器只负责频道列表。
     if (liveState.playMode !== 'proxy') {
         return url;
